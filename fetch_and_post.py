@@ -24,6 +24,7 @@ import os
 import re
 import json
 import time
+import random
 import hashlib
 import datetime
 import requests
@@ -42,6 +43,11 @@ HISTORY_MAX_ITEMS = 120
 # Сколько постов максимум за один запуск. При запуске раз в час это и есть
 # "не больше N постов в час". Меняется в news.yml через MAX_POSTS_PER_RUN.
 MAX_POSTS_PER_RUN = int(os.environ.get("MAX_POSTS_PER_RUN", "5"))
+
+# Посты не летят пачкой, а распределяются случайным образом внутри окна.
+# 55 минут (а не 60) — чтобы запуск гарантированно завершился до старта
+# следующего часового запуска и они не наложились друг на друга.
+SPREAD_MINUTES = int(os.environ.get("SPREAD_MINUTES", "55"))
 
 # Публиковать только новости, помеченные Gemini как важные (importance=top).
 # Если поставить "false" — вернётся публикация всего подряд.
@@ -416,8 +422,36 @@ def main():
     # одни и те же новости через Gemini на каждом запуске
     posted_ids.update(rejected_ids)
 
+    # Раскидываем моменты публикации случайно внутри окна, чтобы лента
+    # выглядела живой, а не пачкой постов в начале часа.
+    offsets = []
+    if scored:
+        if len(scored) == 1:
+            offsets = [random.randint(0, max(SPREAD_MINUTES - 5, 0))]
+        else:
+            # случайные минуты внутри окна, с гарантией минимум 4 минуты
+            # между соседними постами
+            for _ in range(500):
+                picks = sorted(random.sample(range(0, SPREAD_MINUTES), len(scored)))
+                if all(b - a >= 4 for a, b in zip(picks, picks[1:])):
+                    offsets = picks
+                    break
+            else:
+                # если постов слишком много для окна — просто раскидываем
+                # их равномерно, без случайности
+                step = SPREAD_MINUTES / len(scored)
+                offsets = [int(i * step) for i in range(len(scored))]
+    print(f"План публикаций (минут от старта): {offsets}")
+
     sent = 0
-    for c, cls in scored:
+    elapsed = 0  # сколько минут уже прошло с начала запуска
+    for (c, cls), offset in zip(scored, offsets):
+        wait_minutes = offset - elapsed
+        if wait_minutes > 0:
+            print(f"Жду {wait_minutes} мин до следующей публикации…")
+            time.sleep(wait_minutes * 60)
+            elapsed = offset
+
         is_top = cls.get("importance") == "top"
         text = build_post_text(c, is_top)
 
@@ -441,7 +475,13 @@ def main():
                 "ts": datetime.datetime.now(datetime.timezone.utc).isoformat(),
             })
             sent += 1
-            time.sleep(2)
+
+            # сохраняем состояние после КАЖДОГО поста: запуск длится почти
+            # час, и если он оборвётся посреди — уже опубликованное не
+            # уйдёт в канал повторно на следующем часу
+            state["posted_ids"] = list(posted_ids)
+            state["history"] = history
+            save_state(state)
 
     state["posted_ids"] = list(posted_ids)
     state["history"] = history
