@@ -77,16 +77,25 @@ FLAGGED_ENTITIES = {
 
 
 def load_state():
+    """Загружает состояние. Устойчиво к старому формату файла (без history)
+    и к битому/пустому файлу — в этих случаях недостающие ключи создаются."""
+    state = {"posted_ids": [], "history": []}
     if os.path.exists(STATE_FILE):
-        with open(STATE_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
-    return {"posted_ids": [], "history": []}
+        try:
+            with open(STATE_FILE, "r", encoding="utf-8") as f:
+                loaded = json.load(f)
+            if isinstance(loaded, dict):
+                state["posted_ids"] = loaded.get("posted_ids", []) or []
+                state["history"] = loaded.get("history", []) or []
+        except Exception as e:
+            print(f"Не смог прочитать {STATE_FILE}, начинаю с чистого состояния: {e}")
+    return state
 
 
 def save_state(state):
-    state["posted_ids"] = state["posted_ids"][-1000:]
+    state["posted_ids"] = (state.get("posted_ids") or [])[-1000:]
     cutoff = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=HISTORY_KEEP_HOURS)
-    history = [h for h in state["history"] if h.get("ts", "") >= cutoff.isoformat()]
+    history = [h for h in (state.get("history") or []) if h.get("ts", "") >= cutoff.isoformat()]
     state["history"] = history[-HISTORY_MAX_ITEMS:]
     with open(STATE_FILE, "w", encoding="utf-8") as f:
         json.dump(state, f, ensure_ascii=False, indent=2)
