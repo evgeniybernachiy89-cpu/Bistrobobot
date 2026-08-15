@@ -1,15 +1,27 @@
 """
-AlphaFeed news bot
--------------------
-Тянет свежие новости из RSS-лент криптоСМИ, отсеивает старьё и дубли,
-форматирует пост в стиле Alpha Feed и отправляет в Telegram-канал.
+AlphaFeed news bot v2
+----------------------
+Тянет новости из расширенного списка RSS + Polymarket, прогоняет весь
+пакет через один batch-запрос к Gemini (бесплатный тир) для:
+  - фильтра по теме (финансы/крипта/Polymarket, без Украины)
+  - смыслового дедупа (не по ссылке, а по сути события)
+  - определения "это апдейт уже опубликованной новости" -> ответ в Telegram
+  - ранжирования важности -> топовые с ⚡️ идут первыми
+  - пометки организаций/лиц из вашего локального списка иноагентов
 
-Все секреты (токен бота, chat_id, ключ LLM) читаются из переменных
-окружения — их нужно задать в GitHub Actions Secrets, а НЕ вписывать
-в этот файл.
+ВАЖНО про иноагентов: я не встраиваю сюда никакие конкретные имена или
+организации. Официальный реестр Минюста живой и меняется каждую неделю
+(minjust.gov.ru) — заполняйте и обновляйте FLAGGED_ENTITIES сами по
+актуальному реестру. Gemini дополнительно попробует заметить очевидные
+случаи, но это не юридически надёжный источник — авто-эвристика Gemini
+только логируется как "проверьте вручную", в пост не подставляется.
+
+Без GEMINI_API_KEY эта версия скрипта не даёт большую часть обещанной
+логики (дедуп/ранжирование/фильтр темы) — ключ обязателен.
 """
 
 import os
+import re
 import json
 import time
 import hashlib
@@ -19,10 +31,18 @@ import feedparser
 
 # ---------- Настройки ----------
 
-# Сколько последних часов считаем "свежим" (можно переопределить в workflow)
-HOURS_WINDOW = float(os.environ.get("HOURS_WINDOW", "3"))
+TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
+TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 
-# RSS-ленты. Можно добавлять свои — просто добавь URL в список.
+STATE_FILE = "posted.json"
+HISTORY_KEEP_HOURS = 48   # сколько часов храним историю постов для сравнения на дубли/апдейты
+HISTORY_MAX_ITEMS = 120
+
+# Расширенный список источников — англоязычные крипто/финансовые СМИ +
+# несколько русскоязычных. RSS "всего мирового поля" физически не бывает
+# бесплатным без платных агрегаторов (типа NewsAPI/GDELT с ключом) — это
+# максимально широкий бесплатный набор публичных RSS без ключей.
 FEEDS = [
     "https://www.coindesk.com/arc/outboundfeeds/rss/",
     "https://cointelegraph.com/rss",
@@ -30,35 +50,29 @@ FEEDS = [
     "https://cryptoslate.com/feed/",
     "https://news.bitcoin.com/feed/",
     "https://www.theblock.co/rss.xml",
+    "https://www.newsbtc.com/feed/",
+    "https://bitcoinist.com/feed/",
+    "https://u.today/rss",
+    "https://cryptopotato.com/feed/",
+    "https://ambcrypto.com/feed/",
+    "https://watcher.guru/news/feed",
+    "https://forklog.com/feed",              # русскоязычный крипто-источник
+    "https://ru.investing.com/rss/news.rss", # финансы/макро на русском
 ]
 
-STATE_FILE = "posted.json"
+# Polymarket — публичное REST API, ключ не нужен
+POLYMARKET_MARKETS_URL = "https://gamma-api.polymarket.com/markets"
 
-TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
-TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
+# ⚡️ ставится на топовые новости при отправке
+TOP_EMOJI = "⚡️"
 
-# LLM опционален. Если хотите живой стиль Alpha Feed, а не просто
-# заголовок+ссылку — задайте GEMINI_API_KEY в секретах (бесплатный тир
-# Google Gemini). Если ключа нет — бот просто шлёт аккуратный шаблон
-# без LLM, это тоже нормально работает.
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
-
-# Ключевые слова -> хэштеги (простая эвристика без LLM)
-HASHTAG_MAP = {
-    "bitcoin": "#Bitcoin", "btc": "#Bitcoin",
-    "ethereum": "#Ethereum", "eth ": "#Ethereum",
-    "binance": "#Binance",
-    "etf": "#ETF",
-    "fed": "#ФРС", "federal reserve": "#ФРС", "interest rate": "#ставки",
-    "sec": "#SEC", "regulat": "#регулирование",
-    "hack": "#взлом", "exploit": "#взлом",
-    "defi": "#DeFi",
-    "stablecoin": "#стейблкоины",
-    "solana": "#Solana", "sol ": "#Solana",
-    "trump": "#Trump",
-    "gold": "#золото", "oil": "#нефть",
-    "nasdaq": "#Nasdaq", "s&p": "#SP500",
-    "ai ": "#AI", "artificial intelligence": "#AI",
+# ---------- Локальный список иноагентов/запрещённых организаций ----------
+# ЗАПОЛНЯЙТЕ И ОБНОВЛЯЙТЕ САМИ по официальному реестру Минюста:
+# https://minjust.gov.ru/ru/documents/7755/
+# Формат: "название или ФИО, как оно может встретиться в тексте": "метка"
+FLAGGED_ENTITIES = {
+    # "Иван Иванов": "признан(а) иностранным агентом в РФ",
+    # "Meta Platforms": "деятельность признана экстремистской и запрещена в РФ",
 }
 
 
@@ -66,142 +80,171 @@ def load_state():
     if os.path.exists(STATE_FILE):
         with open(STATE_FILE, "r", encoding="utf-8") as f:
             return json.load(f)
-    return {"posted_ids": []}
+    return {"posted_ids": [], "history": []}
 
 
 def save_state(state):
-    # держим только последние 500 id, чтобы файл не рос бесконечно
-    state["posted_ids"] = state["posted_ids"][-500:]
+    state["posted_ids"] = state["posted_ids"][-1000:]
+    cutoff = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=HISTORY_KEEP_HOURS)
+    history = [h for h in state["history"] if h.get("ts", "") >= cutoff.isoformat()]
+    state["history"] = history[-HISTORY_MAX_ITEMS:]
     with open(STATE_FILE, "w", encoding="utf-8") as f:
         json.dump(state, f, ensure_ascii=False, indent=2)
 
 
-def entry_id(entry):
-    raw = entry.get("id") or entry.get("link") or entry.get("title", "")
-    return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:16]
+def entry_id(link_or_title):
+    return hashlib.sha256(link_or_title.encode("utf-8")).hexdigest()[:16]
 
 
-def entry_age_hours(entry):
-    for key in ("published_parsed", "updated_parsed"):
-        t = entry.get(key)
-        if t:
-            published = datetime.datetime(*t[:6], tzinfo=datetime.timezone.utc)
-            now = datetime.datetime.now(datetime.timezone.utc)
-            return (now - published).total_seconds() / 3600
-    return None  # неизвестно — пропустим на всякий случай
-
-
-def translate_to_ru(text):
-    """Бесплатный перевод через неофициальный endpoint Google Translate.
-    Ключ и регистрация не нужны. Если сервис недоступен — возвращаем
-    оригинальный текст, чтобы бот не падал."""
-    if not text.strip():
-        return text
-    url = "https://translate.googleapis.com/translate_a/single"
-    params = {
-        "client": "gtx",
-        "sl": "auto",
-        "tl": "ru",
-        "dt": "t",
-        "q": text,
-    }
-    try:
-        r = requests.get(url, params=params, timeout=15)
-        r.raise_for_status()
-        data = r.json()
-        # data[0] — список кусков [[перевод, оригинал, ...], ...]
-        translated = "".join(chunk[0] for chunk in data[0] if chunk[0])
-        return translated.strip() or text
-    except Exception as e:
-        print(f"Перевод не удался, оставляю оригинал: {e}")
-        return text
+def clean_html(html):
+    return re.sub("<[^<]+?>", "", html or "").strip()
 
 
 def get_image_url(entry):
-    """Пытается найти картинку в RSS-записи разными способами.
-    Возвращает URL картинки или None, если не нашли."""
-    # 1. media:content (частый вариант у CoinDesk, CoinTelegraph и т.п.)
     media_content = entry.get("media_content")
     if media_content:
         for m in media_content:
             if m.get("url"):
                 return m["url"]
-
-    # 2. media:thumbnail
     media_thumb = entry.get("media_thumbnail")
     if media_thumb:
         for m in media_thumb:
             if m.get("url"):
                 return m["url"]
-
-    # 3. enclosure (обычный RSS-способ приложить картинку)
     for link in entry.get("links", []):
         if link.get("type", "").startswith("image") and link.get("href"):
             return link["href"]
-
-    # 4. картинка внутри HTML описания (<img src="...">)
-    import re
     html = entry.get("summary", "") or entry.get("description", "")
     match = re.search(r'<img[^>]+src="([^"]+)"', html)
     if match:
         return match.group(1)
-
     return None
 
 
-def guess_hashtags(text):
-    text_low = text.lower()
-    tags = []
-    for kw, tag in HASHTAG_MAP.items():
-        if kw in text_low and tag not in tags:
-            tags.append(tag)
-        if len(tags) >= 4:
-            break
-    if not tags:
-        tags = ["#крипта"]
-    return tags
+def translate_to_ru(text):
+    if not text.strip():
+        return text
+    url = "https://translate.googleapis.com/translate_a/single"
+    params = {"client": "gtx", "sl": "auto", "tl": "ru", "dt": "t", "q": text}
+    try:
+        r = requests.get(url, params=params, timeout=15)
+        r.raise_for_status()
+        data = r.json()
+        return "".join(chunk[0] for chunk in data[0] if chunk[0]).strip() or text
+    except Exception as e:
+        print(f"Перевод не удался: {e}")
+        return text
 
 
-def format_template(entry, source_name):
-    title_en = entry.get("title", "").strip()
-    summary_en = entry.get("summary", "") or entry.get("description", "")
-    # грубая чистка html-тегов
-    import re
-    summary_en = re.sub("<[^<]+?>", "", summary_en).strip()
-    if len(summary_en) > 500:
-        summary_en = summary_en[:500].rsplit(" ", 1)[0] + "…"
+# ---------- Сбор кандидатов ----------
 
-    # хэштеги ищем по оригинальному (английскому) тексту — словарь ключевых
-    # слов у нас на английском, так надёжнее
-    hashtags = " ".join(guess_hashtags(title_en + " " + summary_en) + ["#AlphaFeedru"])
+def fetch_rss_candidates():
+    candidates = []
+    for feed_url in FEEDS:
+        try:
+            parsed = feedparser.parse(feed_url)
+        except Exception as e:
+            print(f"Ошибка ленты {feed_url}: {e}")
+            continue
+        source_name = parsed.feed.get("title", feed_url)
+        for entry in parsed.entries:
+            link = entry.get("link", "")
+            title = entry.get("title", "").strip()
+            if not link or not title:
+                continue
+            candidates.append({
+                "cid": entry_id(link),
+                "title": title,
+                "summary": clean_html(entry.get("summary", "") or entry.get("description", "")),
+                "link": link,
+                "source": source_name,
+                "image_url": get_image_url(entry),
+            })
+    return candidates
 
-    # переводим на русский для самого поста
-    title_ru = translate_to_ru(title_en)
-    summary_ru = translate_to_ru(summary_en)
 
-    text = (
-        f"*{title_ru}*\n\n"
-        f"{summary_ru}\n\n"
-        f"{hashtags}"
-    )
-    return text
+def fetch_polymarket_candidates():
+    """Забирает несколько заметных (по объёму) активных рынков Polymarket
+    как потенциальные кандидаты для поста. Best-effort: если API недоступно
+    или формат ответа изменится — просто возвращаем пустой список."""
+    try:
+        params = {"active": "true", "closed": "false", "order": "volume", "ascending": "false", "limit": 15}
+        r = requests.get(POLYMARKET_MARKETS_URL, params=params, timeout=15)
+        r.raise_for_status()
+        markets = r.json()
+    except Exception as e:
+        print(f"Polymarket недоступен: {e}")
+        return []
+
+    candidates = []
+    for m in markets:
+        question = m.get("question") or m.get("title")
+        if not question:
+            continue
+        slug = m.get("slug", "")
+        link = f"https://polymarket.com/event/{slug}" if slug else "https://polymarket.com"
+        candidates.append({
+            "cid": entry_id(link + question),
+            "title": f"Polymarket: {question}",
+            "summary": m.get("description", "") or "",
+            "link": link,
+            "source": "Polymarket",
+            "image_url": m.get("image") or None,
+        })
+    return candidates
 
 
-def format_with_gemini(entry, source_name):
-    """Опционально переписывает пост в стиле Alpha Feed через Gemini (бесплатный тир)."""
-    import re
-    title = entry.get("title", "").strip()
-    summary = entry.get("summary", "") or entry.get("description", "")
-    summary = re.sub("<[^<]+?>", "", summary).strip()
-    link = entry.get("link", "")
+# ---------- Gemini: один batch-запрос на весь пакет ----------
 
-    prompt = f"""Ты редактор Telegram-канала Alpha Feed (крипто/финансы).
-Стиль: коротко, дерзко, с характером, без канцелярщины и ИИ-штампов.
-На основе новости ниже напиши пост на русском: цепляющий заголовок без кликбейта,
-3-5 предложений сути, затем 3-5 хэштегов включая #AlphaFeedru.
+def classify_batch(candidates, history):
+    """Отправляет весь пакет кандидатов + недавнюю историю постов в Gemini
+    одним запросом. Возвращает dict cid -> classification, либо None при сбое
+    (тогда main() работает в упрощённом резервном режиме)."""
+    if not GEMINI_API_KEY or not candidates:
+        return None
 
-Заголовок источника: {title}
-Текст источника: {summary}
+    history_brief = [
+        {"message_id": h["message_id"], "title": h["title"], "summary": h.get("summary", "")[:200]}
+        for h in history
+    ]
+    cand_brief = [
+        {"cid": c["cid"], "title": c["title"], "summary": c["summary"][:400], "source": c["source"]}
+        for c in candidates
+    ]
+
+    prompt = f"""Ты — редактор Telegram-канала о финансах и криптовалюте Alpha Feed.
+
+Тебе дан список НОВЫХ кандидатов на публикацию (candidates) и список УЖЕ
+ОПУБЛИКОВАННЫХ на канале за последние {HISTORY_KEEP_HOURS} часов постов (history).
+
+Для КАЖДОГО кандидата верни объект со следующими полями:
+- cid: тот же cid, что во входных данных
+- relevant: true/false — тема канала это ТОЛЬКО финансы, криптовалюта,
+  макроэкономика, регулирование, и интересные ставки Polymarket. Всё
+  остальное (не по теме) — false.
+- mentions_ukraine: true/false — упоминается ли Украина, война, боевые
+  действия, любые события, связанные с Украиной. Если true — кандидат не
+  публикуется вообще, независимо от relevant.
+- duplicate_of_message_id: если этот кандидат описывает ТОТ ЖЕ инфоповод,
+  что уже есть в history (пусть даже другими словами, из другого
+  источника) — верни message_id того поста из history. Иначе null.
+- update_of_message_id: если это НЕ дубль, а развитие/уточнение/апдейт
+  уже опубликованной истории из history (новые цифры, новый поворот той
+  же истории) — верни message_id той истории. Иначе null.
+- importance: "top" если новость реально значимая для рынка (крупные суммы,
+  регуляторные решения, обвалы/взлёты, крупные хаки, заявления ФРС и т.п.),
+  иначе "normal".
+- flagged_entities: список имён/названий организаций из текста, которые
+  МОГУТ быть иностранными агентами или запрещёнными в РФ организациями
+  (просто твоя лучшая догадка по общеизвестным случаям, не авторитетный
+  источник) — если сомневаешься, не включай.
+
+Верни СТРОГО валидный JSON-массив объектов, без markdown-разметки,
+без пояснений до или после, ничего кроме JSON.
+
+candidates = {json.dumps(cand_brief, ensure_ascii=False)}
+
+history = {json.dumps(history_brief, ensure_ascii=False)}
 """
 
     url = (
@@ -210,91 +253,146 @@ def format_with_gemini(entry, source_name):
     )
     payload = {"contents": [{"parts": [{"text": prompt}]}]}
     try:
-        r = requests.post(url, json=payload, timeout=30)
+        r = requests.post(url, json=payload, timeout=60)
         r.raise_for_status()
         data = r.json()
-        generated = data["candidates"][0]["content"]["parts"][0]["text"].strip()
-        return generated
+        raw = data["candidates"][0]["content"]["parts"][0]["text"].strip()
+        raw = re.sub(r"^```json|```$", "", raw.strip(), flags=re.MULTILINE).strip()
+        parsed = json.loads(raw)
+        return {item["cid"]: item for item in parsed if "cid" in item}
     except Exception as e:
-        print(f"Gemini formatting failed, falling back to template: {e}")
-        return format_template(entry, source_name)
+        print(f"Gemini batch-классификация не удалась: {e}")
+        return None
 
 
-def send_to_telegram(text, image_url=None):
+# ---------- Форматирование и отправка ----------
+
+def apply_entity_labels(text):
+    for name, label in FLAGGED_ENTITIES.items():
+        if name.lower() in text.lower():
+            text += f"\n\n⚠️ {name} — {label}"
+    return text
+
+
+def build_post_text(candidate, is_top):
+    title_ru = translate_to_ru(candidate["title"])
+    summary_ru = translate_to_ru(candidate["summary"][:500])
+    prefix = f"{TOP_EMOJI} " if is_top else ""
+    text = f"*{prefix}{title_ru}*\n\n{summary_ru}"
+    text = apply_entity_labels(text)
+    return text.strip()
+
+
+def send_to_telegram(text, image_url=None, reply_to=None):
+    base = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}"
     if image_url:
-        # у Telegram лимит подписи к фото — 1024 символа, обрежем при необходимости
         caption = text if len(text) <= 1024 else text[:1000].rsplit(" ", 1)[0] + "…"
-        url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendPhoto"
         payload = {
             "chat_id": TELEGRAM_CHAT_ID,
             "photo": image_url,
             "caption": caption,
             "parse_mode": "Markdown",
         }
-        r = requests.post(url, json=payload, timeout=20)
+        if reply_to:
+            payload["reply_to_message_id"] = reply_to
+        r = requests.post(f"{base}/sendPhoto", json=payload, timeout=20)
         if r.ok:
-            return True
-        print(f"sendPhoto не сработал ({r.status_code}: {r.text}), пробую без картинки")
-        # если Telegram не смог скачать картинку по ссылке — падаем обратно на текст
+            return r.json()["result"]["message_id"]
+        print(f"sendPhoto не сработал ({r.status_code}: {r.text}), пробую без фото")
 
-    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     payload = {
         "chat_id": TELEGRAM_CHAT_ID,
         "text": text,
         "parse_mode": "Markdown",
         "disable_web_page_preview": True,
     }
-    r = requests.post(url, json=payload, timeout=20)
+    if reply_to:
+        payload["reply_to_message_id"] = reply_to
+    r = requests.post(f"{base}/sendMessage", json=payload, timeout=20)
     if not r.ok:
         print(f"Telegram error {r.status_code}: {r.text}")
-    return r.ok
+        return None
+    return r.json()["result"]["message_id"]
 
+
+# ---------- main ----------
 
 def main():
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
-        raise SystemExit(
-            "Не заданы TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID. "
-            "Добавьте их в GitHub Actions Secrets."
-        )
+        raise SystemExit("Не заданы TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID.")
 
     state = load_state()
     posted_ids = set(state["posted_ids"])
-    sent_count = 0
+    history = state["history"]
 
-    for feed_url in FEEDS:
-        try:
-            parsed = feedparser.parse(feed_url)
-        except Exception as e:
-            print(f"Feed error {feed_url}: {e}")
+    raw_candidates = fetch_rss_candidates() + fetch_polymarket_candidates()
+    # первый, дешёвый слой дедупа — по точной ссылке/id, без всякого ИИ
+    candidates = [c for c in raw_candidates if c["cid"] not in posted_ids]
+
+    if not candidates:
+        print("Новых кандидатов нет.")
+        return
+
+    classifications = classify_batch(candidates, history)
+
+    scored = []
+    for c in candidates:
+        cls = (classifications or {}).get(c["cid"])
+
+        if cls is None:
+            # Резервный режим без Gemini/при сбое: публикуем как обычную
+            # новость без ранжирования и без смыслового дедупа — только
+            # базовая проверка по ссылке (уже сделана выше).
+            scored.append((c, {"importance": "normal", "update_of_message_id": None}))
             continue
 
-        source_name = parsed.feed.get("title", feed_url)
+        if not cls.get("relevant", True):
+            continue
+        if cls.get("mentions_ukraine"):
+            continue
+        if cls.get("duplicate_of_message_id"):
+            continue
 
-        for entry in parsed.entries:
-            eid = entry_id(entry)
-            if eid in posted_ids:
-                continue
+        for name in cls.get("flagged_entities", []) or []:
+            if name not in FLAGGED_ENTITIES:
+                print(f"[проверьте вручную] Gemini предполагает иноагента/запрет: {name}")
 
-            age = entry_age_hours(entry)
-            if age is None or age > HOURS_WINDOW:
-                continue
+        scored.append((c, cls))
 
-            if GEMINI_API_KEY:
-                text = format_with_gemini(entry, source_name)
-            else:
-                text = format_template(entry, source_name)
+    # топовые (⚡️) — первыми
+    scored.sort(key=lambda pair: 0 if pair[1].get("importance") == "top" else 1)
 
-            image_url = get_image_url(entry)
+    sent = 0
+    for c, cls in scored:
+        is_top = cls.get("importance") == "top"
+        text = build_post_text(c, is_top)
 
-            ok = send_to_telegram(text, image_url)
-            if ok:
-                posted_ids.add(eid)
-                sent_count += 1
-                time.sleep(2)  # не спамим Telegram API
+        reply_to = None
+        update_id = cls.get("update_of_message_id")
+        if update_id:
+            reply_to = update_id
+            text = "🔄 Уточнение по ранее опубликованной новости:\n\n" + text
+
+        hashtags = "#AlphaFeedru"
+        text = f"{text}\n\n{hashtags}"
+
+        message_id = send_to_telegram(text, c.get("image_url"), reply_to)
+        if message_id:
+            posted_ids.add(c["cid"])
+            history.append({
+                "cid": c["cid"],
+                "message_id": message_id,
+                "title": c["title"],
+                "summary": c["summary"][:300],
+                "ts": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            })
+            sent += 1
+            time.sleep(2)
 
     state["posted_ids"] = list(posted_ids)
+    state["history"] = history
     save_state(state)
-    print(f"Готово. Отправлено новых постов: {sent_count}")
+    print(f"Готово. Отправлено новых постов: {sent}")
 
 
 if __name__ == "__main__":
