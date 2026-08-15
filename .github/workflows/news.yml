@@ -2,8 +2,8 @@ name: AlphaFeed news bot
 
 on:
   schedule:
-    # Каждые 30 минут. Время в UTC.
-    - cron: "*/30 * * * *"
+    # Раз в час. Вместе с MAX_POSTS_PER_RUN=5 это даёт максимум 5 постов в час.
+    - cron: "0 * * * *"
   workflow_dispatch: {}   # позволяет запустить вручную кнопкой в GitHub
 
 permissions:
@@ -29,6 +29,8 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          MAX_POSTS_PER_RUN: "5"    # максимум постов за один запуск
+          TOP_ONLY: "true"          # только важные новости, без периферии
         run: python fetch_and_post.py
 
       - name: Save posted.json back to repo
