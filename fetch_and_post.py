@@ -39,6 +39,14 @@ STATE_FILE = "posted.json"
 HISTORY_KEEP_HOURS = 48   # сколько часов храним историю постов для сравнения на дубли/апдейты
 HISTORY_MAX_ITEMS = 120
 
+# Сколько постов максимум за один запуск. При запуске раз в час это и есть
+# "не больше N постов в час". Меняется в news.yml через MAX_POSTS_PER_RUN.
+MAX_POSTS_PER_RUN = int(os.environ.get("MAX_POSTS_PER_RUN", "5"))
+
+# Публиковать только новости, помеченные Gemini как важные (importance=top).
+# Если поставить "false" — вернётся публикация всего подряд.
+TOP_ONLY = os.environ.get("TOP_ONLY", "true").lower() == "true"
+
 # Расширенный список источников — англоязычные крипто/финансовые СМИ +
 # несколько русскоязычных. RSS "всего мирового поля" физически не бывает
 # бесплатным без платных агрегаторов (типа NewsAPI/GDELT с ключом) — это
@@ -240,9 +248,16 @@ def classify_batch(candidates, history):
 - update_of_message_id: если это НЕ дубль, а развитие/уточнение/апдейт
   уже опубликованной истории из history (новые цифры, новый поворот той
   же истории) — верни message_id той истории. Иначе null.
-- importance: "top" если новость реально значимая для рынка (крупные суммы,
-  регуляторные решения, обвалы/взлёты, крупные хаки, заявления ФРС и т.п.),
-  иначе "normal".
+- importance: "top" ТОЛЬКО если новость действительно двигает рынок или
+  имеет широкий резонанс: решения ФРС и центробанков, крупные регуляторные
+  решения и иски, резкие движения цены BTC/ETH и индексов, взломы и потери
+  от $10 млн, сделки и привлечения от $100 млн, банкротства и делистинги
+  крупных площадок, заявления первых лиц (президенты, главы ЦБ, CEO
+  крупнейших бирж). Всё остальное — "normal".
+  Будь СТРОГИМ: из большого списка кандидатов "top" обычно заслуживают
+  единицы. Обзоры цен, прогнозы аналитиков, мнения, "что будет с монетой X",
+  промо-материалы, мелкие листинги, рутинные обновления протоколов,
+  подборки и образовательный контент — это всегда "normal".
 - flagged_entities: список имён/названий организаций из текста, которые
   МОГУТ быть иностранными агентами или запрещёнными в РФ организациями
   (просто твоя лучшая догадка по общеизвестным случаям, не авторитетный
@@ -345,21 +360,38 @@ def main():
     classifications = classify_batch(candidates, history)
 
     scored = []
+    rejected_ids = []
     for c in candidates:
         cls = (classifications or {}).get(c["cid"])
 
         if cls is None:
-            # Резервный режим без Gemini/при сбое: публикуем как обычную
-            # новость без ранжирования и без смыслового дедупа — только
-            # базовая проверка по ссылке (уже сделана выше).
+            # Резервный режим (Gemini недоступен/лимит исчерпан): в режиме
+            # TOP_ONLY мы НЕ можем отличить топ от периферии, поэтому лучше
+            # промолчать, чем завалить канал всем подряд. НЕ помечаем как
+            # обработанного — при следующем запуске попробуем ещё раз.
+            if TOP_ONLY:
+                continue
             scored.append((c, {"importance": "normal", "update_of_message_id": None}))
             continue
+
+        # Кандидат прошёл через Gemini — что бы он ни решил, второй раз
+        # прогонять эту же новость не нужно.
+        rejected_ids.append(c["cid"])
 
         if not cls.get("relevant", True):
             continue
         if cls.get("mentions_ukraine"):
             continue
         if cls.get("duplicate_of_message_id"):
+            continue
+
+        is_top = cls.get("importance") == "top"
+        is_update = bool(cls.get("update_of_message_id"))
+
+        # В строгом режиме публикуем только топ. Исключение — уточнения к
+        # уже опубликованным постам: их пропускаем дальше, иначе история
+        # на канале останется оборванной.
+        if TOP_ONLY and not is_top and not is_update:
             continue
 
         for name in cls.get("flagged_entities", []) or []:
@@ -370,6 +402,19 @@ def main():
 
     # топовые (⚡️) — первыми
     scored.sort(key=lambda pair: 0 if pair[1].get("importance") == "top" else 1)
+
+    # жёсткий потолок на количество постов за запуск
+    if len(scored) > MAX_POSTS_PER_RUN:
+        print(f"Кандидатов после фильтра: {len(scored)}, публикую топ-{MAX_POSTS_PER_RUN}")
+        deferred = scored[MAX_POSTS_PER_RUN:]
+        # отложенные на следующий запуск — снимаем с них отметку "обработан"
+        deferred_ids = {c["cid"] for c, _ in deferred}
+        rejected_ids = [rid for rid in rejected_ids if rid not in deferred_ids]
+        scored = scored[:MAX_POSTS_PER_RUN]
+
+    # всё, что Gemini отсеял, помечаем как обработанное — чтобы не гонять
+    # одни и те же новости через Gemini на каждом запуске
+    posted_ids.update(rejected_ids)
 
     sent = 0
     for c, cls in scored:
