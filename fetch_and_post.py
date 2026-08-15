@@ -117,6 +117,38 @@ def translate_to_ru(text):
         return text
 
 
+def get_image_url(entry):
+    """Пытается найти картинку в RSS-записи разными способами.
+    Возвращает URL картинки или None, если не нашли."""
+    # 1. media:content (частый вариант у CoinDesk, CoinTelegraph и т.п.)
+    media_content = entry.get("media_content")
+    if media_content:
+        for m in media_content:
+            if m.get("url"):
+                return m["url"]
+
+    # 2. media:thumbnail
+    media_thumb = entry.get("media_thumbnail")
+    if media_thumb:
+        for m in media_thumb:
+            if m.get("url"):
+                return m["url"]
+
+    # 3. enclosure (обычный RSS-способ приложить картинку)
+    for link in entry.get("links", []):
+        if link.get("type", "").startswith("image") and link.get("href"):
+            return link["href"]
+
+    # 4. картинка внутри HTML описания (<img src="...">)
+    import re
+    html = entry.get("summary", "") or entry.get("description", "")
+    match = re.search(r'<img[^>]+src="([^"]+)"', html)
+    if match:
+        return match.group(1)
+
+    return None
+
+
 def guess_hashtags(text):
     text_low = text.lower()
     tags = []
@@ -147,12 +179,9 @@ def format_template(entry, source_name):
     title_ru = translate_to_ru(title_en)
     summary_ru = translate_to_ru(summary_en)
 
-    link = entry.get("link", "")
-
     text = (
         f"*{title_ru}*\n\n"
         f"{summary_ru}\n\n"
-        f"Источник: {source_name} | {link}\n\n"
         f"{hashtags}"
     )
     return text
@@ -185,19 +214,35 @@ def format_with_gemini(entry, source_name):
         r.raise_for_status()
         data = r.json()
         generated = data["candidates"][0]["content"]["parts"][0]["text"].strip()
-        return f"{generated}\n\nИсточник: {source_name} | {link}"
+        return generated
     except Exception as e:
         print(f"Gemini formatting failed, falling back to template: {e}")
         return format_template(entry, source_name)
 
 
-def send_to_telegram(text):
+def send_to_telegram(text, image_url=None):
+    if image_url:
+        # у Telegram лимит подписи к фото — 1024 символа, обрежем при необходимости
+        caption = text if len(text) <= 1024 else text[:1000].rsplit(" ", 1)[0] + "…"
+        url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendPhoto"
+        payload = {
+            "chat_id": TELEGRAM_CHAT_ID,
+            "photo": image_url,
+            "caption": caption,
+            "parse_mode": "Markdown",
+        }
+        r = requests.post(url, json=payload, timeout=20)
+        if r.ok:
+            return True
+        print(f"sendPhoto не сработал ({r.status_code}: {r.text}), пробую без картинки")
+        # если Telegram не смог скачать картинку по ссылке — падаем обратно на текст
+
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     payload = {
         "chat_id": TELEGRAM_CHAT_ID,
         "text": text,
         "parse_mode": "Markdown",
-        "disable_web_page_preview": False,
+        "disable_web_page_preview": True,
     }
     r = requests.post(url, json=payload, timeout=20)
     if not r.ok:
@@ -239,7 +284,9 @@ def main():
             else:
                 text = format_template(entry, source_name)
 
-            ok = send_to_telegram(text)
+            image_url = get_image_url(entry)
+
+            ok = send_to_telegram(text, image_url)
             if ok:
                 posted_ids.add(eid)
                 sent_count += 1
