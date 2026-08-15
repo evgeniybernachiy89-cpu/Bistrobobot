@@ -91,6 +91,32 @@ def entry_age_hours(entry):
     return None  # неизвестно — пропустим на всякий случай
 
 
+def translate_to_ru(text):
+    """Бесплатный перевод через неофициальный endpoint Google Translate.
+    Ключ и регистрация не нужны. Если сервис недоступен — возвращаем
+    оригинальный текст, чтобы бот не падал."""
+    if not text.strip():
+        return text
+    url = "https://translate.googleapis.com/translate_a/single"
+    params = {
+        "client": "gtx",
+        "sl": "auto",
+        "tl": "ru",
+        "dt": "t",
+        "q": text,
+    }
+    try:
+        r = requests.get(url, params=params, timeout=15)
+        r.raise_for_status()
+        data = r.json()
+        # data[0] — список кусков [[перевод, оригинал, ...], ...]
+        translated = "".join(chunk[0] for chunk in data[0] if chunk[0])
+        return translated.strip() or text
+    except Exception as e:
+        print(f"Перевод не удался, оставляю оригинал: {e}")
+        return text
+
+
 def guess_hashtags(text):
     text_low = text.lower()
     tags = []
@@ -105,20 +131,27 @@ def guess_hashtags(text):
 
 
 def format_template(entry, source_name):
-    title = entry.get("title", "").strip()
-    summary = entry.get("summary", "") or entry.get("description", "")
+    title_en = entry.get("title", "").strip()
+    summary_en = entry.get("summary", "") or entry.get("description", "")
     # грубая чистка html-тегов
     import re
-    summary = re.sub("<[^<]+?>", "", summary).strip()
-    if len(summary) > 400:
-        summary = summary[:400].rsplit(" ", 1)[0] + "…"
+    summary_en = re.sub("<[^<]+?>", "", summary_en).strip()
+    if len(summary_en) > 500:
+        summary_en = summary_en[:500].rsplit(" ", 1)[0] + "…"
 
-    hashtags = " ".join(guess_hashtags(title + " " + summary) + ["#AlphaFeedru"])
+    # хэштеги ищем по оригинальному (английскому) тексту — словарь ключевых
+    # слов у нас на английском, так надёжнее
+    hashtags = " ".join(guess_hashtags(title_en + " " + summary_en) + ["#AlphaFeedru"])
+
+    # переводим на русский для самого поста
+    title_ru = translate_to_ru(title_en)
+    summary_ru = translate_to_ru(summary_en)
+
     link = entry.get("link", "")
 
     text = (
-        f"*{title}*\n\n"
-        f"{summary}\n\n"
+        f"*{title_ru}*\n\n"
+        f"{summary_ru}\n\n"
         f"Источник: {source_name} | {link}\n\n"
         f"{hashtags}"
     )
