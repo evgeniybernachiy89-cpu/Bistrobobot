@@ -9,9 +9,16 @@ on:
 permissions:
   contents: write   # нужно, чтобы бот мог сохранять posted.json обратно в репозиторий
 
+# Если предыдущий часовой запуск ещё не закончился — новый не стартует,
+# чтобы посты не наложились друг на друга.
+concurrency:
+  group: alphafeed-news
+  cancel-in-progress: false
+
 jobs:
   run-bot:
     runs-on: ubuntu-latest
+    timeout-minutes: 70   # запуск живёт почти час, растягивая публикации
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -31,6 +38,7 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           MAX_POSTS_PER_RUN: "5"    # максимум постов за один запуск
           TOP_ONLY: "true"          # только важные новости, без периферии
+          SPREAD_MINUTES: "55"      # окно, внутри которого разносятся публикации
         run: python fetch_and_post.py
 
       - name: Save posted.json back to repo
