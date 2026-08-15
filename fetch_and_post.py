@@ -93,6 +93,52 @@ FLAGGED_ENTITIES = {
 }
 
 
+# Слова-маркеры значимости — используются ТОЛЬКО в резервном режиме,
+# когда Gemini недоступен (нет ключа, сбой, исчерпан лимит).
+FALLBACK_TOP_KEYWORDS = [
+    "fed", "federal reserve", "sec ", "etf", "hack", "exploit", "stolen",
+    "lawsuit", "ban", "bankrupt", "billion", "million", "surge", "plunge",
+    "crash", "rally", "whale", "listing", "delist", "approval", "rate cut",
+    "rate hike", "inflation", "treasury", "regulation", "seizure", "fine",
+]
+
+# Слова-маркеры периферии — в резервном режиме такие новости не публикуются.
+FALLBACK_SKIP_KEYWORDS = [
+    "price prediction", "technical analysis", "could hit", "here's why",
+    "top 5", "top 10", "best ", "guide", "how to", "sponsored", "opinion",
+    "what to expect", "forecast", "review",
+]
+
+# Слова, при которых новость не публикуется никогда (тема Украины).
+HARD_SKIP_KEYWORDS = ["ukraine", "ukrainian", "kyiv", "kiev", "украин", "киев"]
+
+
+def fallback_classify(candidate):
+    """Грубая оценка без Gemini: по ключевым словам. Возвращает
+    классификацию в том же формате либо None, если публиковать не стоит.
+    Смысловой дедуп и определение апдейтов тут невозможны — только
+    базовая фильтрация."""
+    text = f"{candidate['title']} {candidate['summary']}".lower()
+
+    for kw in HARD_SKIP_KEYWORDS:
+        if kw in text:
+            return None
+
+    for kw in FALLBACK_SKIP_KEYWORDS:
+        if kw in text:
+            return None
+
+    hits = sum(1 for kw in FALLBACK_TOP_KEYWORDS if kw in text)
+    if hits == 0:
+        return None
+
+    return {
+        "importance": "top" if hits >= 2 else "normal",
+        "update_of_message_id": None,
+        "fallback": True,
+    }
+
+
 def load_state():
     """Загружает состояние. Устойчиво к старому формату файла (без history)
     и к битому/пустому файлу — в этих случаях недостающие ключи создаются."""
@@ -368,21 +414,37 @@ def main():
 
     classifications = classify_batch(candidates, history)
 
+    if classifications:
+        print(f"Gemini обработал кандидатов: {len(classifications)}")
+    elif not GEMINI_API_KEY:
+        print("!!! GEMINI_API_KEY не задан — работаю в резервном режиме "
+              "(без смыслового дедупа, апдейтов и точного ранжирования). "
+              "Добавьте секрет GEMINI_API_KEY в настройках репозитория.")
+    else:
+        print("!!! Gemini не ответил — работаю в резервном режиме.")
+
     scored = []
     rejected_ids = []
-    stats = {"не по теме": 0, "Украина": 0, "дубль": 0, "не топ": 0, "без Gemini": 0}
+    stats = {"не по теме": 0, "Украина": 0, "дубль": 0, "не топ": 0,
+             "резерв: прошло": 0, "резерв: не топ": 0, "резерв: отсеяно": 0}
     for c in candidates:
         cls = (classifications or {}).get(c["cid"])
 
         if cls is None:
-            # Резервный режим (Gemini недоступен/лимит исчерпан): в режиме
-            # TOP_ONLY мы НЕ можем отличить топ от периферии, поэтому лучше
-            # промолчать, чем завалить канал всем подряд. НЕ помечаем как
-            # обработанного — при следующем запуске попробуем ещё раз.
-            if TOP_ONLY:
-                stats["без Gemini"] += 1
+            # Gemini недоступен (нет ключа/сбой/лимит). Раньше бот тут
+            # молчал — теперь работает по грубой эвристике на ключевых
+            # словах, чтобы канал не оставался пустым.
+            fb = fallback_classify(c)
+            if fb is None:
+                stats["резерв: отсеяно"] += 1
+                rejected_ids.append(c["cid"])
                 continue
-            scored.append((c, {"importance": "normal", "update_of_message_id": None}))
+            if TOP_ONLY and fb["importance"] != "top":
+                stats["резерв: не топ"] += 1
+                rejected_ids.append(c["cid"])
+                continue
+            stats["резерв: прошло"] += 1
+            scored.append((c, fb))
             continue
 
         # Кандидат прошёл через Gemini — что бы он ни решил, второй раз
