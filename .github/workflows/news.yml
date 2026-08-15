@@ -36,9 +36,10 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          MAX_POSTS_PER_RUN: "5"    # максимум постов за один запуск
-          TOP_ONLY: "true"          # только важные новости, без периферии
-          SPREAD_MINUTES: "55"      # окно, внутри которого разносятся публикации
+          MAX_POSTS_PER_RUN: "2"     # максимум постов за один запуск
+          TOP_ONLY: "true"           # только важные новости, без периферии
+          SPREAD_MINUTES: "55"       # окно, внутри которого разносятся публикации
+          MIN_GAP_MINUTES: "25"      # минимальный разрыв между постами
         run: python fetch_and_post.py
 
       - name: Save posted.json back to repo
