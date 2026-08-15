@@ -2,8 +2,8 @@ name: AlphaFeed news bot
 
 on:
   schedule:
-    # Каждые 2 часа. Время в UTC. Можно поменять на "0 */1 * * *" для раз в час.
-    - cron: "0 */2 * * *"
+    # Каждые 30 минут. Время в UTC.
+    - cron: "*/30 * * * *"
   workflow_dispatch: {}   # позволяет запустить вручную кнопкой в GitHub
 
 permissions:
@@ -29,7 +29,7 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          HOURS_WINDOW: "3"
+          HOURS_WINDOW: "1"
         run: python fetch_and_post.py
 
       - name: Save posted.json back to repo
