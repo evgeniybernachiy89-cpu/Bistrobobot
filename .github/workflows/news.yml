@@ -2,7 +2,7 @@ name: AlphaFeed news bot
 
 on:
   schedule:
-    # Раз в час. Вместе с MAX_POSTS_PER_RUN=5 это даёт максимум 5 постов в час.
+    # Раз в час. Вместе с MAX_POSTS_PER_RUN=2 это даёт максимум 2 поста в час.
     - cron: "0 * * * *"
   workflow_dispatch: {}   # позволяет запустить вручную кнопкой в GitHub
 
@@ -40,7 +40,7 @@ jobs:
           TOP_ONLY: "true"           # только важные новости, без периферии
           SPREAD_MINUTES: "55"       # окно, внутри которого разносятся публикации
           MIN_GAP_MINUTES: "20"      # минимальный разрыв между постами
-        run: python fetch_and_post.py
+        run: python -u fetch_and_post.py
 
       - name: Save posted.json back to repo
         run: |
