@@ -193,19 +193,127 @@ def get_image_url(entry):
     return None
 
 
-def translate_to_ru(text):
-    if not text.strip():
-        return text
-    url = "https://translate.googleapis.com/translate_a/single"
+def _parse_translate_response(data):
+    """Разные endpoint'ы Google отдают разную структуру — разбираем обе."""
+    # формат translate_a/single: [[["перевод","оригинал",...], ...], ...]
+    if isinstance(data, list) and data and isinstance(data[0], list):
+        parts = []
+        for chunk in data[0]:
+            if isinstance(chunk, list) and chunk and isinstance(chunk[0], str):
+                parts.append(chunk[0])
+            elif isinstance(chunk, str):
+                parts.append(chunk)
+        if parts:
+            return "".join(parts).strip()
+    # формат clients5 translate_a/t: ["перевод"] или "перевод"
+    if isinstance(data, list) and data and isinstance(data[0], str):
+        return data[0].strip()
+    if isinstance(data, str):
+        return data.strip()
+    return ""
+
+
+def _is_mostly_russian(text):
+    """Если текст уже на русском — переводить не нужно (Forklog, Investing)."""
+    letters = [ch for ch in text if ch.isalpha()]
+    if not letters:
+        return False
+    cyrillic = sum(1 for ch in letters if "а" <= ch.lower() <= "я" or ch.lower() == "ё")
+    return cyrillic / len(letters) > 0.5
+
+
+def _try_translate_once(text, endpoint):
+    """Одна попытка перевода через конкретный endpoint."""
     params = {"client": "gtx", "sl": "auto", "tl": "ru", "dt": "t", "q": text}
-    try:
-        r = requests.get(url, params=params, timeout=15)
+    headers = {
+        # без User-Agent Google чаще отвечает 403 на запросы из облака
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                      "AppleWebKit/537.36 (KHTML, like Gecko) "
+                      "Chrome/120.0 Safari/537.36"
+    }
+    r = requests.get(endpoint, params=params, headers=headers, timeout=15)
+    r.raise_for_status()
+    return _parse_translate_response(r.json())
+
+
+def _translate_mymemory(text):
+    """Запасной переводчик — независимая от Google инфраструктура.
+    Бесплатно ~5000 слов в сутки без ключа. Ограничение длины запроса —
+    500 символов, поэтому длинный текст режем на куски по предложениям."""
+    def chunks(s, limit=480):
+        out, cur = [], ""
+        for sentence in re.split(r"(?<=[.!?])\s+", s):
+            if len(cur) + len(sentence) + 1 <= limit:
+                cur = f"{cur} {sentence}".strip()
+            else:
+                if cur:
+                    out.append(cur)
+                cur = sentence[:limit]
+        if cur:
+            out.append(cur)
+        return out
+
+    translated = []
+    for part in chunks(text):
+        r = requests.get(
+            "https://api.mymemory.translated.net/get",
+            params={"q": part, "langpair": "en|ru"},
+            timeout=15,
+        )
         r.raise_for_status()
         data = r.json()
-        return "".join(chunk[0] for chunk in data[0] if chunk[0]).strip() or text
-    except Exception as e:
-        print(f"Перевод не удался: {e}")
+        piece = (data.get("responseData") or {}).get("translatedText", "")
+        if not piece:
+            raise RuntimeError(f"MyMemory пустой ответ: {data.get('responseDetails')}")
+        translated.append(piece)
+    return " ".join(translated).strip()
+
+
+def translate_to_ru(text):
+    """Перевод на русский через бесплатные endpoint'ы Google.
+    Бесплатные эндпоинты периодически отвечают 429/403 на запросы из
+    облака (в т.ч. с IP GitHub Actions), поэтому пробуем несколько раз
+    и через разные адреса."""
+    if not text.strip():
         return text
+
+    if _is_mostly_russian(text):
+        return text
+
+    # текст длиннее ~4500 символов Google обрезает — режем сами
+    if len(text) > 4000:
+        text = text[:4000].rsplit(" ", 1)[0]
+
+    endpoints = [
+        "https://translate.googleapis.com/translate_a/single",
+        "https://clients5.google.com/translate_a/t",
+    ]
+
+    last_error = None
+    for attempt in range(3):
+        for endpoint in endpoints:
+            try:
+                result = _try_translate_once(text, endpoint)
+                if result:
+                    if attempt > 0:
+                        print(f"Перевод удался с {attempt + 1}-й попытки")
+                    return result
+            except Exception as e:
+                last_error = e
+        if attempt < 2:
+            time.sleep(2 * (attempt + 1))  # пауза перед повтором
+
+    print(f"Google-переводчик недоступен ({last_error}), пробую MyMemory…")
+    try:
+        result = _translate_mymemory(text)
+        if result:
+            return result
+    except Exception as e:
+        last_error = e
+
+    print(f"!!! ПЕРЕВОД НЕ УДАЛСЯ ни через Google, ни через MyMemory — "
+          f"публикую оригинал. Причина: {last_error}")
+    return text
 
 
 # ---------- Сбор кандидатов ----------
