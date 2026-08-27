@@ -37,8 +37,8 @@ TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 
 STATE_FILE = "posted.json"
-HISTORY_KEEP_HOURS = 48   # сколько часов храним историю постов для сравнения на дубли/апдейты
-HISTORY_MAX_ITEMS = 120
+HISTORY_KEEP_HOURS = 72   # сколько часов храним историю постов для сравнения на дубли/апдейты
+HISTORY_MAX_ITEMS = 300
 
 # Сколько постов максимум за один запуск. При запуске раз в час это и есть
 # "не больше N постов в час". Меняется в news.yml через MAX_POSTS_PER_RUN.
@@ -137,6 +137,93 @@ def fallback_classify(candidate):
         "update_of_message_id": None,
         "fallback": True,
     }
+
+
+# ---------- Локальный дедуп без ИИ ----------
+
+# Служебные слова, которые не несут смысла при сравнении заголовков
+STOPWORDS = {
+    "the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for",
+    "of", "with", "by", "from", "as", "is", "are", "was", "were", "be",
+    "been", "has", "have", "had", "will", "would", "can", "could", "may",
+    "says", "say", "said", "after", "before", "over", "under", "into",
+    "its", "it", "this", "that", "these", "those", "new", "now", "amid",
+    "not", "more", "than", "then", "how", "why", "what", "who", "you",
+    "и", "в", "на", "с", "по", "за", "из", "от", "до", "для", "что",
+    "как", "это", "все", "уже", "его", "их", "не", "но", "или", "к",
+}
+
+
+# Синонимы: разные издания называют одно и то же по-разному
+SYNONYMS = {
+    "federal": "fed", "reserve": "fed", "fed": "fed",
+    "microstrategy": "strategy", "strategy": "strategy",
+    "btc": "bitcoin", "bitcoin": "bitcoin",
+    "eth": "ethereum", "ether": "ethereum", "ethereum": "ethereum",
+    "etfs": "etf", "etf": "etf",
+    "hack": "exploit", "hacked": "exploit", "hackers": "exploit",
+    "hacker": "exploit", "exploit": "exploit", "exploited": "exploit",
+    "stolen": "exploit", "steal": "exploit", "steals": "exploit",
+    "drained": "exploit", "drain": "exploit", "breach": "exploit",
+    "rates": "rate", "rate": "rate", "interest": "rate",
+    "buys": "buy", "bought": "buy", "adds": "buy", "acquires": "buy",
+    "purchase": "buy", "purchases": "buy", "buy": "buy",
+    "inflows": "inflow", "inflow": "inflow",
+    "outflows": "outflow", "outflow": "outflow",
+    "tokens": "token", "token": "token",
+    "prices": "price", "price": "price",
+    "lists": "listing", "listed": "listing", "listing": "listing",
+}
+
+
+def _stem(word):
+    """Грубая нормализация окончаний: etfs -> etf, holds -> hold."""
+    if word in SYNONYMS:
+        return SYNONYMS[word]
+    for suffix in ("ing", "ed", "es", "s"):
+        if len(word) > 4 and word.endswith(suffix):
+            base = word[: -len(suffix)]
+            return SYNONYMS.get(base, base)
+    return word
+
+
+def significant_tokens(text):
+    """Выделяет значимые слова заголовка: имена, тикеры, суммы, действия.
+    По их пересечению определяем, об одном ли событии речь."""
+    text = (text or "").lower()
+    # суммы: $40M и "$40 million" должны давать один и тот же токен.
+    # ВАЖЕН порядок альтернатив — длинные варианты первыми, иначе "m"
+    # съест начало слова "million" и оставит мусор "illion".
+    text = re.sub(
+        r"[$€£]\s?([\d][\d.,]*)\s?(trillion|billion|million|mln|bn|tn|[mbkt])?\b",
+        lambda m: f" money{m.group(1).rstrip('.,').replace(',', '')} ",
+        text,
+    )
+    # крупные числа без валюты: 5,000 BTC -> 5000
+    text = re.sub(r"(\d),(\d{3})", r"\1\2", text)
+    words = re.findall(r"[a-zа-яё0-9]+", text)
+    return {_stem(w) for w in words if len(w) > 2 and w not in STOPWORDS}
+
+
+def similarity(tokens_a, tokens_b):
+    """Коэффициент Жаккара: доля общих слов от общего их числа."""
+    if not tokens_a or not tokens_b:
+        return 0.0
+    union = len(tokens_a | tokens_b)
+    return len(tokens_a & tokens_b) / union if union else 0.0
+
+
+def is_same_story(tokens_a, tokens_b, threshold=0.40):
+    """Событие считается тем же, если заголовки сильно пересекаются по
+    значимым словам ЛИБО один почти целиком входит в другой (частый
+    случай: краткая и развёрнутая версии одной новости)."""
+    if similarity(tokens_a, tokens_b) >= threshold:
+        return True
+    smaller = min(len(tokens_a), len(tokens_b))
+    if smaller >= 3:
+        if len(tokens_a & tokens_b) / smaller >= 0.75:
+            return True
+    return False
 
 
 def load_state():
@@ -519,6 +606,41 @@ def main():
     if not candidates:
         print("Новых кандидатов нет.")
         return
+
+    # --- Локальный дедуп (работает всегда, даже без Gemini) ---
+    # 1) против уже опубликованного за последние часы
+    history_tokens = [
+        (h.get("message_id"), significant_tokens(f"{h.get('title','')}"))
+        for h in history
+    ]
+    deduped = []
+    dup_local = 0
+    for c in candidates:
+        c["tokens"] = significant_tokens(c["title"])
+        same_as = None
+        for mid, htok in history_tokens:
+            if is_same_story(c["tokens"], htok):
+                same_as = mid
+                break
+        if same_as is not None:
+            dup_local += 1
+            posted_ids.add(c["cid"])   # больше к этой новости не возвращаемся
+            continue
+        # 2) против уже отобранных в этой же пачке (разные СМИ, одно событие)
+        clash = False
+        for kept in deduped:
+            if is_same_story(c["tokens"], kept["tokens"]):
+                clash = True
+                break
+        if clash:
+            dup_local += 1
+            posted_ids.add(c["cid"])
+            continue
+        deduped.append(c)
+
+    if dup_local:
+        print(f"Локальный дедуп отсеял повторов: {dup_local}")
+    candidates = deduped
 
     classifications = classify_batch(candidates, history)
 
