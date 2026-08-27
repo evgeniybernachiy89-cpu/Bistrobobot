@@ -18,7 +18,7 @@ concurrency:
 jobs:
   run-bot:
     runs-on: ubuntu-latest
-    timeout-minutes: 70   # запуск живёт почти час, растягивая публикации
+    timeout-minutes: 55   # запуск живёт почти час, растягивая публикации
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -38,7 +38,7 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           MAX_POSTS_PER_RUN: "4"     # максимум постов за один запуск
           TOP_ONLY: "true"           # только важные новости, без периферии
-          SPREAD_MINUTES: "55"       # окно, внутри которого разносятся публикации
+          SPREAD_MINUTES: "40"       # окно, внутри которого разносятся публикации
           MIN_GAP_MINUTES: "10"      # минимальный разрыв между постами
         run: python -u fetch_and_post.py
 
