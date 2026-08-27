@@ -215,14 +215,18 @@ def similarity(tokens_a, tokens_b):
 
 def is_same_story(tokens_a, tokens_b, threshold=0.40):
     """Событие считается тем же, если заголовки сильно пересекаются по
-    значимым словам ЛИБО один почти целиком входит в другой (частый
-    случай: краткая и развёрнутая версии одной новости)."""
+    значимым словам ЛИБО один почти целиком входит в другой (краткая и
+    развёрнутая версии одной новости)."""
+    common = len(tokens_a & tokens_b)
+    # Меньше трёх общих слов — это совпадение темы, а не события.
+    # Без этого условия "Fed cuts rates" и "Fed raises rates" слипаются.
+    if common < 3:
+        return False
     if similarity(tokens_a, tokens_b) >= threshold:
         return True
     smaller = min(len(tokens_a), len(tokens_b))
-    if smaller >= 3:
-        if len(tokens_a & tokens_b) / smaller >= 0.75:
-            return True
+    if smaller >= 5 and common / smaller >= 0.8:
+        return True
     return False
 
 
