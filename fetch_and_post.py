@@ -49,13 +49,9 @@ POSTED_IDS_LIMIT = 20000
 # "не больше N постов в час". Меняется в news.yml через MAX_POSTS_PER_RUN.
 MAX_POSTS_PER_RUN = int(os.environ.get("MAX_POSTS_PER_RUN", "5"))
 
-# Посты не летят пачкой, а распределяются случайным образом внутри окна.
-# 55 минут (а не 60) — чтобы запуск гарантированно завершился до старта
-# следующего часового запуска и они не наложились друг на друга.
-SPREAD_MINUTES = int(os.environ.get("SPREAD_MINUTES", "55"))
-
-# Минимальный разрыв между соседними публикациями, минут.
-MIN_GAP_MINUTES = int(os.environ.get("MIN_GAP_MINUTES", "25"))
+# Случайная задержка перед публикацией (минут), чтобы посты не выходили
+# ровно по минутам cron. Запуск остаётся коротким.
+JITTER_MAX_MINUTES = int(os.environ.get("JITTER_MAX_MINUTES", "7"))
 
 # Публиковать только новости, помеченные Gemini как важные (importance=top).
 # Если поставить "false" — вернётся публикация всего подряд.
@@ -388,37 +384,34 @@ def translate_to_ru(text):
         return text
 
     # текст длиннее ~4500 символов Google обрезает — режем сами
+    last_error = None
     if len(text) > 4000:
         text = text[:4000].rsplit(" ", 1)[0]
 
-    endpoints = [
-        "https://translate.googleapis.com/translate_a/single",
-        "https://clients5.google.com/translate_a/t",
-    ]
-
-    last_error = None
-    for attempt in range(3):
-        for endpoint in endpoints:
-            try:
-                result = _try_translate_once(text, endpoint)
-                if result:
-                    if attempt > 0:
-                        print(f"Перевод удался с {attempt + 1}-й попытки")
-                    return result
-            except Exception as e:
-                last_error = e
-        if attempt < 2:
-            time.sleep(2 * (attempt + 1))  # пауза перед повтором
-
-    print(f"Google-переводчик недоступен ({last_error}), пробую MyMemory…")
+    # Порядок важен: Google стабильно отвечает 429 с IP GitHub Actions,
+    # поэтому основным сделан MyMemory, а Google остался запасным.
+    # Так экономятся ~10 секунд на каждой заведомо провальной попытке.
     try:
         result = _translate_mymemory(text)
         if result:
             return result
     except Exception as e:
         last_error = e
+        print(f"MyMemory не ответил ({e}), пробую Google…")
 
-    print(f"!!! ПЕРЕВОД НЕ УДАЛСЯ ни через Google, ни через MyMemory — "
+    endpoints = [
+        "https://translate.googleapis.com/translate_a/single",
+        "https://clients5.google.com/translate_a/t",
+    ]
+    for endpoint in endpoints:
+        try:
+            result = _try_translate_once(text, endpoint)
+            if result:
+                return result
+        except Exception as e:
+            last_error = e
+
+    print(f"!!! ПЕРЕВОД НЕ УДАЛСЯ ни через MyMemory, ни через Google — "
           f"публикую оригинал. Причина: {last_error}")
     return text
 
@@ -776,25 +769,14 @@ def main():
     for _rid in rejected_ids:
         mark_seen(_rid)
 
-    # Раскидываем моменты публикации случайно внутри окна, чтобы лента
-    # выглядела живой, а не пачкой постов в начале часа.
+    # Небольшая случайная задержка, чтобы посты не выходили строго
+    # по минутам расписания. Запуск при этом остаётся коротким —
+    # длинные job'ы срывались из-за задержек расписания GitHub.
     offsets = []
     if scored:
-        if len(scored) == 1:
-            offsets = [random.randint(0, max(SPREAD_MINUTES - 5, 0))]
-        else:
-            # случайные минуты внутри окна, с гарантией минимального
-            # разрыва между соседними постами
-            for _ in range(500):
-                picks = sorted(random.sample(range(0, SPREAD_MINUTES), len(scored)))
-                if all(b - a >= MIN_GAP_MINUTES for a, b in zip(picks, picks[1:])):
-                    offsets = picks
-                    break
-            else:
-                # если постов слишком много для окна — просто раскидываем
-                # их равномерно, без случайности
-                step = SPREAD_MINUTES / len(scored)
-                offsets = [int(i * step) for i in range(len(scored))]
+        offsets = [random.randint(0, JITTER_MAX_MINUTES)]
+        for i in range(1, len(scored)):
+            offsets.append(offsets[-1] + random.randint(1, 3))
     print(f"План публикаций (минут от старта): {offsets}")
 
     sent = 0
