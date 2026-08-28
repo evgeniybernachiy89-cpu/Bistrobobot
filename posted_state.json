@@ -1488,7 +1488,10 @@
     "d51c2d21e2f02437",
     "24a9c686178c1ba7",
     "ca41364e386dc0b9",
-    "4626265e19269567"
+    "4626265e19269567",
+    "c81a4998f6430065",
+    "96d2701bcd3196c8",
+    "c3a8e1da1b60b79b"
   ],
   "history": [
     {
@@ -1525,7 +1528,14 @@
       "title": "XRP Treasury Company Gets One Step Closer to Listing on Nasdaq",
       "summary": "Evernorth has gained SEC clearance, teeing up a shareholder vote on its Nasdaq listing—while the firm's XRP stash sits well below what it paid for it.",
       "ts": "2026-08-28T22:42:01.832939+00:00"
+    },
+    {
+      "cid": "c3a8e1da1b60b79b",
+      "message_id": 1292,
+      "title": "After selling all its Bitcoin to pay off debt, AI firm tries to rebuild $827 million treasury from scratch",
+      "summary": "The proposed preferred raise covers 1.51% of the target before AI allocations and an 18-month dividend reserve.\nThe post After selling all its Bitcoin to pay off debt, AI firm tries to rebuild $827 million treasury from scratch appeared first on CryptoSlate.",
+      "ts": "2026-08-28T22:59:24.000329+00:00"
     }
   ],
-  "last_post_ts": "2026-08-28T22:42:01.832965+00:00"
+  "last_post_ts": "2026-08-28T22:59:24.000350+00:00"
 }
