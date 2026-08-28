@@ -1,1 +1,28 @@
-{"posted_ids": [], "history": [], "last_post_ts": null}
+{
+  "posted_ids": [
+    "fba908fca5e26e7a",
+    "99a1c2cc7ac7c097",
+    "dde4c841c852337b",
+    "3cafebb8a0dd921c",
+    "1eea5f3443671545",
+    "d3b9673f41da2cc8",
+    "b941e6ebfacfdb16",
+    "e0ba498a0ba1fccd",
+    "f491af412945b7dc",
+    "deb6fc651e8f785c",
+    "d882aa4c3b99d3ed",
+    "7252fc3c589d97dd",
+    "11508c3d72c79a0d",
+    "86e8718927f09ee9"
+  ],
+  "history": [
+    {
+      "cid": "86e8718927f09ee9",
+      "message_id": 1254,
+      "title": "Why Did a Judge Just Kill the Trump Administration’s Anthropic Ban?",
+      "summary": "A federal judge tore up the Pentagon&#8217;s &#8220;supply chain risk&#8221; label on Anthropic late Thursday, ruling that the Trump administration illegally punished the artificial intelligence (AI) firm for refusing to let the military weaponize its Claude models. A Blunt Rebuke From the Bench U.S",
+      "ts": "2026-08-28T11:26:14.140050+00:00"
+    }
+  ],
+  "last_post_ts": "2026-08-28T11:26:14.140066+00:00"
+}
