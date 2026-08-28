@@ -1492,7 +1492,18 @@
     "c81a4998f6430065",
     "96d2701bcd3196c8",
     "c3a8e1da1b60b79b",
-    "d0d132e03f443d20"
+    "d0d132e03f443d20",
+    "658fded696002e17",
+    "0bb4bb28f6967609",
+    "c6e960822b7be9ed",
+    "f1065dd976fb6cd8",
+    "a6ee81660cac21c2",
+    "b1eb012c595f501b",
+    "448a2db9fa393cd4",
+    "b8afe956f945a9a5",
+    "19b43e04e7770f53",
+    "88a80bf11041753b",
+    "a989af872a829804"
   ],
   "history": [
     {
@@ -1536,7 +1547,14 @@
       "title": "After selling all its Bitcoin to pay off debt, AI firm tries to rebuild $827 million treasury from scratch",
       "summary": "The proposed preferred raise covers 1.51% of the target before AI allocations and an 18-month dividend reserve.\nThe post After selling all its Bitcoin to pay off debt, AI firm tries to rebuild $827 million treasury from scratch appeared first on CryptoSlate.",
       "ts": "2026-08-28T22:59:24.000329+00:00"
+    },
+    {
+      "cid": "a989af872a829804",
+      "message_id": 1294,
+      "title": "Fed Chair Kevin Warsh triggers a $488 million crypto liquidation cascade as rate-hike expectations rise",
+      "summary": "Bitcoin fell below $77,000 Friday after Fed Chair Kevin Warsh revived the threat of higher interest rates at Jackson Hole. Data from CryptoSlate shows the largest cryptocurrency dropped to as low as $76,909 before recovering to $77,712 as of press time, down about 4% over the previous 24 hours. The ",
+      "ts": "2026-08-28T23:11:55.570783+00:00"
     }
   ],
-  "last_post_ts": "2026-08-28T22:59:24.000350+00:00"
+  "last_post_ts": "2026-08-28T23:11:55.570807+00:00"
 }
