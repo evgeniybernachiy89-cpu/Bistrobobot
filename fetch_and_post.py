@@ -540,6 +540,7 @@ def fetch_rss_candidates():
     if TOPIC == "tech":
         feeds += TECH_FEEDS
     too_old = 0
+    no_date = 0
     for feed_url in feeds:
         try:
             parsed = feedparser.parse(feed_url)
@@ -556,7 +557,13 @@ def fetch_rss_candidates():
             # Отсекаем старые записи: ленты отдают материалы за несколько
             # дней, и без этого в канал попадает позавчерашнее.
             age = entry_age_hours(entry)
-            if age is not None and age > MAX_AGE_HOURS:
+            if age is None:
+                # Дату определить не удалось — публиковать опасно, именно
+                # такие записи и лезли старьём. Лучше пропустить новость,
+                # чем выдать недельную давность.
+                no_date += 1
+                continue
+            if age > MAX_AGE_HOURS:
                 too_old += 1
                 continue
 
@@ -567,10 +574,11 @@ def fetch_rss_candidates():
                 "link": link,
                 "source": source_name,
                 "image_url": get_image_url(entry),
-                "age_hours": age if age is not None else 999,
+                "age_hours": age,
             })
-    if too_old:
-        print(f"Отброшено как устаревшие (старше {MAX_AGE_HOURS} ч): {too_old}")
+    if too_old or no_date:
+        print(f"Отброшено: устаревших (старше {MAX_AGE_HOURS} ч) — {too_old}, "
+              f"без даты публикации — {no_date}")
     # свежие — первыми
     candidates.sort(key=lambda c: c.get("age_hours", 999))
     return candidates
@@ -971,6 +979,10 @@ def main():
 
         hashtags = "#AlphaFeedru"
         text = f"{text}\n\n{hashtags}"
+
+        age = c.get("age_hours")
+        age_str = f"{age:.1f} ч назад" if isinstance(age, (int, float)) else "возраст неизвестен"
+        print(f"Публикую ({age_str}): {c['title'][:70]}")
 
         message_id = send_to_telegram(text, c.get("image_url"), reply_to)
         if message_id:
