@@ -42,7 +42,7 @@ jobs:
           STATE_FILE: "posted_tech.json"
           MAX_POSTS_PER_RUN: "2"
           POSTS_PER_HOUR: "1"        # 1 пост про технику в час
-          MAX_AGE_HOURS: "24"        # не публиковать новости старше суток
+          MAX_AGE_HOURS: "12"        # не публиковать новости старше 12 часов
           TOP_ONLY: "true"           # только важные новости, без периферии
           JITTER_MAX_MINUTES: "7"    # случайная задержка, чтобы время выхода "плавало"
         run: python -u fetch_and_post.py
