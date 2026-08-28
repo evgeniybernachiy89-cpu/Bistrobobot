@@ -1506,7 +1506,18 @@
     "a989af872a829804",
     "277bcce31f6d42f4",
     "ad7d13b39cf00ebc",
-    "2d0c15a20bbbccf2"
+    "2d0c15a20bbbccf2",
+    "a34edbe64152f1dc",
+    "fd08cbeb19b2ce9f",
+    "e9611b0a5ea57c9c",
+    "e97f69c209518520",
+    "6a5dbdbd7cc4e287",
+    "c9841aca482a224d",
+    "cdce50a3f9f4c6a9",
+    "ad28fefac85cfab5",
+    "713628be1676b418",
+    "71a6f6c5f32af03e",
+    "af8059dfc59afa16"
   ],
   "history": [
     {
@@ -1564,7 +1575,14 @@
       "title": "XRP Price Drops Sharply After Fed Chair's Comments",
       "summary": "XRP has come under renewed selling pressure after Federal Reserve Chair Kevin Warsh delivered a notably hawkish message on inflation during his first Jackson Hole speech.",
       "ts": "2026-08-28T23:26:44.907965+00:00"
+    },
+    {
+      "cid": "af8059dfc59afa16",
+      "message_id": 1297,
+      "title": "BTC Rejects $81,500 as Whales Build Massive Sell Wall at $81K",
+      "summary": "Bitcoin briefly rallied to $81,500 before pulling back below $79,300, failing to hold the critical $80,000 support level for the second time in a week. Bitcoin Loses Steam Ahead of Fed Chair Speech Bitcoin lost momentum soon after breaching $81,000, as markets awaited Federal Reserve Chair Kevin War",
+      "ts": "2026-08-28T23:42:17.204108+00:00"
     }
   ],
-  "last_post_ts": "2026-08-28T23:26:44.907985+00:00"
+  "last_post_ts": "2026-08-28T23:42:17.204132+00:00"
 }
