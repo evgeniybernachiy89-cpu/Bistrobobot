@@ -88,6 +88,18 @@ FEEDS = [
     "https://ru.investing.com/rss/news.rss", # финансы/макро на русском
 ]
 
+# Ленты для темы "tech" — подключаются только при TOPIC=tech,
+# чтобы крипто- и макро-задачи не тянули лишнее.
+TECH_FEEDS = [
+    "https://www.theverge.com/rss/index.xml",
+    "https://feeds.arstechnica.com/arstechnica/index",
+    "https://www.tomshardware.com/feeds/all",
+    "https://techcrunch.com/feed/",
+    "https://9to5mac.com/feed/",
+    "https://videocardz.com/feed",
+    "https://www.engadget.com/rss.xml",
+]
+
 # Polymarket — публичное REST API, ключ не нужен
 POLYMARKET_MARKETS_URL = "https://gamma-api.polymarket.com/markets"
 
@@ -265,15 +277,34 @@ MACRO_WORDS = [
 ]
 
 
+TECH_WORDS = [
+    "iphone", "apple", "samsung", "google pixel", "android", "ios",
+    "nvidia", "amd", "intel", "gpu", "cpu", "chip", "semiconductor",
+    "rtx", "radeon", "ryzen", "geforce", "processor", "motherboard",
+    "laptop", "smartphone", "tablet", "macbook", "ipad", "watch",
+    "openai", "anthropic", "gemini", "chatgpt", "llm", "data center",
+    "tsmc", "foundry", "nanometer", "benchmark", "overclock", "cooling",
+    "ssd", "ram", "ddr5", "pcie", "firmware", "display", "camera",
+    "айфон", "процессор", "видеокарт", "чип", "смартфон", "ноутбук",
+]
+
+
 def detect_topic(candidate):
     """Определяет, к какой теме относится новость: crypto или macro.
     Если попадает в обе — считаем криптой (профильная тема канала)."""
     text = f"{candidate['title']} {candidate['summary']}".lower()
-    crypto_hits = sum(1 for w in CRYPTO_WORDS if w in text)
-    macro_hits = sum(1 for w in MACRO_WORDS if w in text)
-    if crypto_hits == 0 and macro_hits == 0:
+    scores = {
+        "crypto": sum(1 for w in CRYPTO_WORDS if w in text),
+        "macro": sum(1 for w in MACRO_WORDS if w in text),
+        "tech": sum(1 for w in TECH_WORDS if w in text),
+    }
+    best = max(scores, key=lambda k: scores[k])
+    if scores[best] == 0:
         return None            # не наша тема вообще
-    return "crypto" if crypto_hits >= macro_hits else "macro"
+    # Крипта — профильная тема канала: при равенстве очков она выигрывает.
+    if scores["crypto"] == scores[best]:
+        return "crypto"
+    return best
 
 
 def load_state():
@@ -466,7 +497,10 @@ def translate_to_ru(text):
 
 def fetch_rss_candidates():
     candidates = []
-    for feed_url in FEEDS:
+    feeds = list(FEEDS)
+    if TOPIC == "tech":
+        feeds += TECH_FEEDS
+    for feed_url in feeds:
         try:
             parsed = feedparser.parse(feed_url)
         except Exception as e:
