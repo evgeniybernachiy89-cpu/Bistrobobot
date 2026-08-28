@@ -1517,7 +1517,9 @@
     "ad28fefac85cfab5",
     "713628be1676b418",
     "71a6f6c5f32af03e",
-    "af8059dfc59afa16"
+    "af8059dfc59afa16",
+    "d90cd7ca7db45163",
+    "2a001ff41d225861"
   ],
   "history": [
     {
@@ -1582,7 +1584,14 @@
       "title": "BTC Rejects $81,500 as Whales Build Massive Sell Wall at $81K",
       "summary": "Bitcoin briefly rallied to $81,500 before pulling back below $79,300, failing to hold the critical $80,000 support level for the second time in a week. Bitcoin Loses Steam Ahead of Fed Chair Speech Bitcoin lost momentum soon after breaching $81,000, as markets awaited Federal Reserve Chair Kevin War",
       "ts": "2026-08-28T23:42:17.204108+00:00"
+    },
+    {
+      "cid": "2a001ff41d225861",
+      "message_id": 1298,
+      "title": "North Korea Hackers Break Silence With $19.4 Million Bitcoin (BTC) Move: Time to Worry?",
+      "summary": "Lazarus Group moves $19.4 million in dormant Bitcoin, leaving the market guessing if this sudden North Korean transfer is enough to trigger a crash.",
+      "ts": "2026-08-28T23:56:00.586015+00:00"
     }
   ],
-  "last_post_ts": "2026-08-28T23:42:17.204132+00:00"
+  "last_post_ts": "2026-08-28T23:56:00.586043+00:00"
 }
