@@ -9,11 +9,12 @@ on:
 permissions:
   contents: write   # нужно, чтобы бот мог сохранять posted.json обратно в репозиторий
 
-# Если предыдущий часовой запуск ещё не закончился — новый не стартует,
-# чтобы посты не наложились друг на друга.
+# Если предыдущий запуск завис — он ОТМЕНЯЕТСЯ, и новый стартует.
+# Раньше стояло false: подвисший job блокировал все последующие
+# запуски, и канал замолкал на часы.
 concurrency:
   group: alphafeed-news
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   run-bot:
@@ -42,10 +43,16 @@ jobs:
           MIN_GAP_MINUTES: "10"      # минимальный разрыв между постами
         run: python -u fetch_and_post.py
 
+      # if: always() — состояние сохраняется даже если скрипт упал,
+      # иначе после каждой ошибки бот заново перебирал бы те же новости
       - name: Save posted.json back to repo
+        if: always()
         run: |
           git config user.name "alphafeed-bot"
           git config user.email "actions@github.com"
           git add posted.json
-          git diff --staged --quiet || git commit -m "update posted state"
-          git push
+          git diff --staged --quiet && echo "нет изменений" && exit 0
+          git commit -m "update posted state"
+          # подтягиваем чужие изменения, чтобы push не отвалился
+          git pull --rebase --autostash origin ${GITHUB_REF_NAME} || true
+          git push || echo "push не удался, состояние сохранится в следующий раз"
