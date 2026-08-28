@@ -331,21 +331,28 @@ def load_state():
         except Exception as e:
             print(f"Не смог прочитать {STATE_FILE}, начинаю с чистого состояния: {e}")
 
-    # Подмешиваем id из состояния до разделения на темы — иначе после
-    # перехода на три задачи старые новости вышли бы повторно.
-    if LEGACY_STATE_FILE != STATE_FILE and os.path.exists(LEGACY_STATE_FILE):
+    # Читаем состояния ДРУГИХ тем и старое общее — только на чтение.
+    # Без этого новость, попавшая не в свою тему, вышла бы дважды:
+    # задачи не видят публикаций друг друга.
+    others = [LEGACY_STATE_FILE, "posted_crypto.json",
+              "posted_macro.json", "posted_tech.json"]
+    known = set(state["posted_ids"])
+    borrowed = []
+    for other in others:
+        if other == STATE_FILE or not os.path.exists(other):
+            continue
         try:
-            with open(LEGACY_STATE_FILE, "r", encoding="utf-8") as f:
-                legacy = json.load(f)
-            legacy_ids = legacy.get("posted_ids", []) or []
-            known = set(state["posted_ids"])
-            added = [i for i in legacy_ids if i not in known]
-            if added:
-                state["posted_ids"] = added + state["posted_ids"]
-                print(f"Подхватил {len(added)} id из {LEGACY_STATE_FILE} "
-                      f"(история до разделения на темы)")
+            with open(other, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            for i in (data.get("posted_ids", []) or []):
+                if i not in known:
+                    known.add(i)
+                    borrowed.append(i)
         except Exception as e:
-            print(f"Не смог прочитать {LEGACY_STATE_FILE}: {e}")
+            print(f"Не смог прочитать {other}: {e}")
+    if borrowed:
+        state["posted_ids"] = borrowed + state["posted_ids"]
+        print(f"Учёл {len(borrowed)} публикаций из других тем и общей истории")
     return state
 
 
@@ -767,7 +774,7 @@ def main():
 
     # Отбор по теме запуска: crypto или macro. Так две параллельные
     # задачи не публикуют одно и то же и делят ленту по смыслу.
-    if TOPIC in ("crypto", "macro"):
+    if TOPIC in ("crypto", "macro", "tech"):
         before = len(candidates)
         candidates = [c for c in candidates if detect_topic(c) == TOPIC]
         print(f"Тема запуска: {TOPIC}. Подходящих новостей: "
@@ -916,7 +923,10 @@ def main():
     if last_ts:
         try:
             elapsed_min = (now - datetime.datetime.fromisoformat(last_ts)).total_seconds() / 60
-            quota = int(elapsed_min // interval)
+            # Допуск: метки расписания не совпадают идеально с интервалом.
+            # Без него пост в :10 при интервале 30 мин блокировал бы метки
+            # :32 (22 мин) и :38 (28 мин), и вместо 2 постов выходил бы 1.
+            quota = int((elapsed_min * 1.35) // interval)
             if quota < 1:
                 # Интервал ещё не выдержан. Такое бывает штатно: расписаний
                 # два (для надёжности), и второе срабатывает вскоре после
