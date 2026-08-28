@@ -1475,7 +1475,18 @@
     "376688ed9ea9f5a7",
     "962e1b7d669f9542",
     "99a691700c3a5eea",
-    "88f90a5b24ba13b3"
+    "88f90a5b24ba13b3",
+    "13d8cf936aeba64c",
+    "1b632c21fdd38747",
+    "1ca2ef03cbb84f21",
+    "38c6652df2afdc35",
+    "0006f251cac160ce",
+    "b82e032f531f50bd",
+    "4388919957f299e6",
+    "1b81d40c75bb9b79",
+    "6ec63ebdb9f64f9e",
+    "d51c2d21e2f02437",
+    "24a9c686178c1ba7"
   ],
   "history": [
     {
@@ -1491,7 +1502,14 @@
       "title": "Ethena is targeting the $120 trillion Wall Street stock market to hunt yields 5x higher than Bitcoin",
       "summary": "Ethena is expanding USDe into equity perpetual-basis trades, targeting funding yields more than five times higher than Bitcoin’s as the synthetic dollar looks to recover from its 2026 contraction. On Aug. 28, Ethena revealed plans to extend the basis strategy behind USDe into equity perpetual future",
       "ts": "2026-08-28T22:00:29.730624+00:00"
+    },
+    {
+      "cid": "24a9c686178c1ba7",
+      "message_id": 1289,
+      "title": "Bitcoin Rally Stalls, But Long-Term Sentiment Remains Bullish",
+      "summary": "BTC gave back some of its gains after Fed Chair Kevin Warsh talked tough on inflation, but prediction market traders are still leaning bullish.",
+      "ts": "2026-08-28T22:14:13.732207+00:00"
     }
   ],
-  "last_post_ts": "2026-08-28T22:00:29.730652+00:00"
+  "last_post_ts": "2026-08-28T22:14:13.732237+00:00"
 }
