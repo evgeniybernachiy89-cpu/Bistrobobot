@@ -1,0 +1,71 @@
+name: Zerno news bot
+
+on:
+  schedule:
+    # Запуск каждые 5 минут. Часто — намеренно: планировщик GitHub
+    # регулярно пропускает метки и выбрасывает запуски пачкой.
+    # Лишних постов не будет: интервал между публикациями держит
+    # единый счётчик времени внутри скрипта (MIN_INTERVAL_MINUTES).
+    - cron: "*/5 * * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: zerno-news
+  cancel-in-progress: false
+
+jobs:
+  run-bot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run bot
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          TOPIC: "rotate"                    # темы чередуются по кругу
+          TOPIC_ROTATION: "crypto,macro,crypto,tech"
+          MIN_INTERVAL_MINUTES: "14"         # ≈4 поста в час
+          STATE_FILE: "posted_state.json"
+          MAX_POSTS_PER_RUN: "1"
+          MAX_AGE_HOURS: "12"
+          TOP_ONLY: "true"
+          JITTER_MAX_MINUTES: "3"
+        run: python -u fetch_and_post.py
+
+      - name: Save state back to repo
+        if: always()
+        run: |
+          git config user.name "zerno-bot"
+          git config user.email "actions@github.com"
+          git add posted_state.json
+          if git diff --staged --quiet; then
+            echo "нет изменений состояния"
+            exit 0
+          fi
+          git commit -m "state update"
+          for i in 1 2 3 4 5; do
+            git fetch origin "$GITHUB_REF_NAME"
+            git rebase -X ours "origin/$GITHUB_REF_NAME" || git rebase --abort
+            if git push origin "HEAD:$GITHUB_REF_NAME"; then
+              echo "состояние сохранено с попытки $i"
+              exit 0
+            fi
+            sleep $((RANDOM % 8 + 2))
+          done
+          echo "::error::НЕ УДАЛОСЬ сохранить состояние — возможны дубли"
+          exit 1
