@@ -1077,7 +1077,37 @@
     "6148d8b479edfae8",
     "c808e9cd51d72878",
     "b2596acbf03a4f5a",
-    "7a057eabe837b172"
+    "7a057eabe837b172",
+    "1f0402089dddb3c2",
+    "a3f3381ccc26f13f",
+    "b39e6bc6f3d5c0b1",
+    "693f4bdeb2f00752",
+    "4f4720edce8cd27a",
+    "3c665fdf8745640f",
+    "183ccf8f21a57592",
+    "8237692558af3913",
+    "8f05437f19dd714f",
+    "3c4120c43adb409c",
+    "d26ecadc3bc35663",
+    "d4afd3a044952e52",
+    "8c66ef69d434e427",
+    "e34471788965b1da",
+    "f5faff5fb1e73fe3",
+    "57b7c0e8ec627340",
+    "f2b73df6753f30a0",
+    "c1ac6875f40cbe17",
+    "7224e267d9151d3d",
+    "e1d7aead97f4249e",
+    "1cdab3636e73f2ce",
+    "168516b66938a874",
+    "913b2e850d2392c4",
+    "2ccc31d6302ef5cd",
+    "c8af05d5badbf74e",
+    "83a8d4e884faea30",
+    "a71037b744e868a4",
+    "a06fce19eba22eae",
+    "b95acd75aeb64d0c",
+    "86e8718927f09ee9"
   ],
   "history": [
     {
@@ -1345,6 +1375,14 @@
       "title": "Bitwise Crypto ETFs Attract $100 Million in One Day",
       "summary": "Bitwise’s U.S. crypto exchange-traded products attracted roughly $100 million in inflows in a single day.",
       "ts": "2026-08-28T08:59:34.998589+00:00"
+    },
+    {
+      "cid": "86e8718927f09ee9",
+      "message_id": 1253,
+      "title": "Why Did a Judge Just Kill the Trump Administration’s Anthropic Ban?",
+      "summary": "A federal judge tore up the Pentagon&#8217;s &#8220;supply chain risk&#8221; label on Anthropic late Thursday, ruling that the Trump administration illegally punished the artificial intelligence (AI) firm for refusing to let the military weaponize its Claude models. A Blunt Rebuke From the Bench U.S",
+      "ts": "2026-08-28T10:33:50.642877+00:00"
     }
-  ]
+  ],
+  "last_post_ts": "2026-08-28T10:33:50.642900+00:00"
 }
