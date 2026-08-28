@@ -40,6 +40,11 @@ STATE_FILE = "posted.json"
 HISTORY_KEEP_HOURS = 72   # сколько часов храним историю постов для сравнения на дубли/апдейты
 HISTORY_MAX_ITEMS = 300
 
+# Сколько id обработанных новостей помним. При ~300 кандидатах в час
+# прежнего лимита в 1000 хватало всего на три часа, после чего бот
+# начинал заново перебирать уже виденное.
+POSTED_IDS_LIMIT = 20000
+
 # Сколько постов максимум за один запуск. При запуске раз в час это и есть
 # "не больше N постов в час". Меняется в news.yml через MAX_POSTS_PER_RUN.
 MAX_POSTS_PER_RUN = int(os.environ.get("MAX_POSTS_PER_RUN", "5"))
@@ -247,7 +252,18 @@ def load_state():
 
 
 def save_state(state):
-    state["posted_ids"] = (state.get("posted_ids") or [])[-1000:]
+    # ВАЖНО: сохраняем порядок добавления. Раньше здесь оказывалось
+    # множество (set), из-за чего обрезка [-N:] выбрасывала случайные
+    # записи, а не старые — и бот начинал заново обрабатывать уже
+    # виденные новости.
+    ids = state.get("posted_ids") or []
+    seen, ordered = set(), []
+    for i in ids:
+        if i not in seen:
+            seen.add(i)
+            ordered.append(i)
+    state["posted_ids"] = ordered[-POSTED_IDS_LIMIT:]
+
     cutoff = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=HISTORY_KEEP_HOURS)
     history = [h for h in (state.get("history") or []) if h.get("ts", "") >= cutoff.isoformat()]
     state["history"] = history[-HISTORY_MAX_ITEMS:]
@@ -600,7 +616,15 @@ def main():
         raise SystemExit("Не заданы TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID.")
 
     state = load_state()
-    posted_ids = set(state["posted_ids"])
+    # seen — для быстрой проверки, posted_order — сохраняет порядок
+    posted_order = list(state["posted_ids"])
+    posted_ids = set(posted_order)
+
+    def mark_seen(cid):
+        if cid not in posted_ids:
+            posted_ids.add(cid)
+            posted_order.append(cid)
+
     history = state["history"]
 
     raw_candidates = fetch_rss_candidates() + fetch_polymarket_candidates()
@@ -628,7 +652,7 @@ def main():
                 break
         if same_as is not None:
             dup_local += 1
-            posted_ids.add(c["cid"])   # больше к этой новости не возвращаемся
+            mark_seen(c["cid"])   # больше к этой новости не возвращаемся
             continue
         # 2) против уже отобранных в этой же пачке (разные СМИ, одно событие)
         clash = False
@@ -638,7 +662,7 @@ def main():
                 break
         if clash:
             dup_local += 1
-            posted_ids.add(c["cid"])
+            mark_seen(c["cid"])
             continue
         deduped.append(c)
 
@@ -717,6 +741,27 @@ def main():
     print(f"Кандидатов всего: {len(candidates)}, прошло фильтр: {len(scored)}")
     print(f"Отсеяно: {stats}")
 
+    # Аварийный клапан: фильтры отсеяли вообще всё, а новости были.
+    # Лучше опубликовать пару менее громких новостей, чем оставить
+    # канал молчать целый час.
+    if not scored and candidates:
+        print("Ничего не прошло фильтр — включаю аварийный отбор")
+        ranked = []
+        for c in candidates:
+            text = f"{c['title']} {c['summary']}".lower()
+            if any(kw in text for kw in HARD_SKIP_KEYWORDS):
+                continue
+            if any(kw in text for kw in FALLBACK_SKIP_KEYWORDS):
+                continue
+            hits = sum(1 for kw in FALLBACK_TOP_KEYWORDS if kw in text)
+            if hits:
+                ranked.append((hits, c))
+        ranked.sort(key=lambda x: -x[0])
+        for hits, c in ranked[:MAX_POSTS_PER_RUN]:
+            scored.append((c, {"importance": "normal",
+                               "update_of_message_id": None}))
+        print(f"Аварийный отбор дал постов: {len(scored)}")
+
     # жёсткий потолок на количество постов за запуск
     if len(scored) > MAX_POSTS_PER_RUN:
         print(f"Кандидатов после фильтра: {len(scored)}, публикую топ-{MAX_POSTS_PER_RUN}")
@@ -728,7 +773,8 @@ def main():
 
     # всё, что Gemini отсеял, помечаем как обработанное — чтобы не гонять
     # одни и те же новости через Gemini на каждом запуске
-    posted_ids.update(rejected_ids)
+    for _rid in rejected_ids:
+        mark_seen(_rid)
 
     # Раскидываем моменты публикации случайно внутри окна, чтобы лента
     # выглядела живой, а не пачкой постов в начале часа.
@@ -774,7 +820,7 @@ def main():
 
         message_id = send_to_telegram(text, c.get("image_url"), reply_to)
         if message_id:
-            posted_ids.add(c["cid"])
+            mark_seen(c["cid"])
             history.append({
                 "cid": c["cid"],
                 "message_id": message_id,
@@ -787,11 +833,11 @@ def main():
             # сохраняем состояние после КАЖДОГО поста: запуск длится почти
             # час, и если он оборвётся посреди — уже опубликованное не
             # уйдёт в канал повторно на следующем часу
-            state["posted_ids"] = list(posted_ids)
+            state["posted_ids"] = posted_order
             state["history"] = history
             save_state(state)
 
-    state["posted_ids"] = list(posted_ids)
+    state["posted_ids"] = posted_order
     state["history"] = history
     save_state(state)
     print(f"Готово. Отправлено новых постов: {sent}")
