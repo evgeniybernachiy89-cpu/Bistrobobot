@@ -1049,7 +1049,35 @@
     "06f3f71842fc5977",
     "bc4199f3f5cb22a8",
     "98fd7ab6b9689a85",
-    "663404fbbe441297"
+    "663404fbbe441297",
+    "d5bcea105622fb06",
+    "280e40de4236a1e1",
+    "d9814ed72c3a9b6e",
+    "fc1dd15d95a0d942",
+    "38df43fa0a4ba707",
+    "861d1ead1082318f",
+    "ff90a9546956e0de",
+    "03d3924e8db21b81",
+    "823ab38feb22c49e",
+    "3b3ba3e1d9545ee0",
+    "e6a5303171c58c70",
+    "3eafecfe43ffb4c8",
+    "ae7a32f99a3e1d11",
+    "b941e6ebfacfdb16",
+    "aa05120d0637d108",
+    "e0ba498a0ba1fccd",
+    "4a6a5b6956c58469",
+    "9c6aa65b0605594b",
+    "7e58391a2f924e8a",
+    "df5da2948da82eb8",
+    "e8efd6b1a002afc7",
+    "0fbb154e6a94b514",
+    "7456e26660c3e665",
+    "bc3bacb086ddf86b",
+    "6148d8b479edfae8",
+    "c808e9cd51d72878",
+    "b2596acbf03a4f5a",
+    "7a057eabe837b172"
   ],
   "history": [
     {
@@ -1310,6 +1338,13 @@
       "title": "XRP treasury firm Evernorth says SEC registration now effective, clearing way for Nasdaq listing",
       "summary": "The S-4 registration statement is for Evernorth's merger with SPAC firm Armada, through which it seeks a Nasdaq listing.",
       "ts": "2026-08-28T07:12:29.857524+00:00"
+    },
+    {
+      "cid": "7a057eabe837b172",
+      "message_id": 1252,
+      "title": "Bitwise Crypto ETFs Attract $100 Million in One Day",
+      "summary": "Bitwise’s U.S. crypto exchange-traded products attracted roughly $100 million in inflows in a single day.",
+      "ts": "2026-08-28T08:59:34.998589+00:00"
     }
   ]
 }
