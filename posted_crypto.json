@@ -1118,7 +1118,15 @@
     "b6c59e284b6a1c71",
     "9dc965dd3d78f3f5",
     "d6f5b91609233d4b",
-    "06f3f71842fc5977"
+    "06f3f71842fc5977",
+    "828d512208834d33",
+    "700e332f2861eaec",
+    "c3a5d6ff21917e7f",
+    "73147f994ab51c45",
+    "3d4f8798ff51e34c",
+    "a3d67d502db48706",
+    "edba26337be6b2c3",
+    "e41c22d888be0873"
   ],
   "history": [
     {
@@ -1127,7 +1135,14 @@
       "title": "The Sandbox pledges 1:1 repayment after $700K bridge exploit",
       "summary": "Eligible holders on Base and BNB Chain will receive Ethereum-based SAND from the project’s treasury, with claims expected to open within two weeks.",
       "ts": "2026-08-28T11:29:54.042325+00:00"
+    },
+    {
+      "cid": "e41c22d888be0873",
+      "message_id": 1258,
+      "title": "Ledger says the viral “hack” was already patched, but two real bugs still needed fixing",
+      "summary": "Version 1.22.3 now closes a 257-operation blind spot and a limited swap approval substitution.\nThe post Ledger says the viral “hack” was already patched, but two real bugs still needed fixing appeared first on CryptoSlate.",
+      "ts": "2026-08-28T12:10:12.654097+00:00"
     }
   ],
-  "last_post_ts": "2026-08-28T11:29:54.042344+00:00"
+  "last_post_ts": "2026-08-28T12:10:12.654121+00:00"
 }
