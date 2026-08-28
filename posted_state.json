@@ -1503,7 +1503,10 @@
     "b8afe956f945a9a5",
     "19b43e04e7770f53",
     "88a80bf11041753b",
-    "a989af872a829804"
+    "a989af872a829804",
+    "277bcce31f6d42f4",
+    "ad7d13b39cf00ebc",
+    "2d0c15a20bbbccf2"
   ],
   "history": [
     {
@@ -1554,7 +1557,14 @@
       "title": "Fed Chair Kevin Warsh triggers a $488 million crypto liquidation cascade as rate-hike expectations rise",
       "summary": "Bitcoin fell below $77,000 Friday after Fed Chair Kevin Warsh revived the threat of higher interest rates at Jackson Hole. Data from CryptoSlate shows the largest cryptocurrency dropped to as low as $76,909 before recovering to $77,712 as of press time, down about 4% over the previous 24 hours. The ",
       "ts": "2026-08-28T23:11:55.570783+00:00"
+    },
+    {
+      "cid": "2d0c15a20bbbccf2",
+      "message_id": 1296,
+      "title": "XRP Price Drops Sharply After Fed Chair's Comments",
+      "summary": "XRP has come under renewed selling pressure after Federal Reserve Chair Kevin Warsh delivered a notably hawkish message on inflation during his first Jackson Hole speech.",
+      "ts": "2026-08-28T23:26:44.907965+00:00"
     }
   ],
-  "last_post_ts": "2026-08-28T23:11:55.570807+00:00"
+  "last_post_ts": "2026-08-28T23:26:44.907985+00:00"
 }
