@@ -1487,7 +1487,8 @@
     "6ec63ebdb9f64f9e",
     "d51c2d21e2f02437",
     "24a9c686178c1ba7",
-    "ca41364e386dc0b9"
+    "ca41364e386dc0b9",
+    "4626265e19269567"
   ],
   "history": [
     {
@@ -1517,7 +1518,14 @@
       "title": "Cosmos misjudged a critical bug for 4 months before hackers stole nearly $6 million across 6 chains",
       "summary": "The upstream fix reached release branches hours before the incident, while MANTRA says none of the tokens have been recovered.\nThe post Cosmos misjudged a critical bug for 4 months before hackers stole nearly $6 million across 6 chains appeared first on CryptoSlate.",
       "ts": "2026-08-28T22:27:13.486314+00:00"
+    },
+    {
+      "cid": "4626265e19269567",
+      "message_id": 1291,
+      "title": "XRP Treasury Company Gets One Step Closer to Listing on Nasdaq",
+      "summary": "Evernorth has gained SEC clearance, teeing up a shareholder vote on its Nasdaq listing—while the firm's XRP stash sits well below what it paid for it.",
+      "ts": "2026-08-28T22:42:01.832939+00:00"
     }
   ],
-  "last_post_ts": "2026-08-28T22:27:13.486338+00:00"
+  "last_post_ts": "2026-08-28T22:42:01.832965+00:00"
 }
