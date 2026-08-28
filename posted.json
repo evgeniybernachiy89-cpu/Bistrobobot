@@ -999,7 +999,57 @@
     "3c1b320524f7c02b",
     "b02f40b04fc6363a",
     "213ca5cadfde8152",
-    "e93823702b3d12d5"
+    "e93823702b3d12d5",
+    "2ca212f8a6113c58",
+    "3cf76a9f01064849",
+    "dcd0cc23765a7f85",
+    "f1f3de450b2697c0",
+    "5488c8a772919601",
+    "d2357c4fba5de9c0",
+    "c244dbacb7d8e0c6",
+    "552e43ae5e35357a",
+    "68f2a0389c4cdd4c",
+    "d386b88a15617900",
+    "67cdb0f7fb3913e4",
+    "c6e154e008230e59",
+    "fde1652b510352f0",
+    "06d59c7bebe530a5",
+    "e6fd541e557f26e8",
+    "ec5b3bb3f0d0dcb5",
+    "9cb6fbfa0bc865bf",
+    "f15aa2b596c53a3a",
+    "5b4a424086066742",
+    "1961ca76e7078234",
+    "cd5f69178f58ef2a",
+    "7a32eede40492bc5",
+    "95d7a3130b18aded",
+    "9003c5967b7a6198",
+    "2459e3d23415ca8f",
+    "8db7ecbee1b85f63",
+    "06b3d409f241cd6c",
+    "401652a33995e0b1",
+    "5ad26325f1e60743",
+    "0249189d7678a653",
+    "ee217fc0f8b7ed37",
+    "e5ef5f5e1833d416",
+    "bc0f33e3ed1c2226",
+    "04d46d1a7a8c9932",
+    "cddf94c24c4b7c9e",
+    "161d96478c87120d",
+    "54e461d5f3953f4c",
+    "5509659c907332f8",
+    "d4dbd7651d0b2aeb",
+    "eb16164011165130",
+    "398eb690ba40a3c0",
+    "a81fed5c25404f69",
+    "43a26386b8a5f0c6",
+    "a3d1b13396462356",
+    "11508c3d72c79a0d",
+    "1d88e40a64ed699b",
+    "06f3f71842fc5977",
+    "bc4199f3f5cb22a8",
+    "98fd7ab6b9689a85",
+    "663404fbbe441297"
   ],
   "history": [
     {
@@ -1232,6 +1282,34 @@
       "title": "Bithumb wins lawsuit over proceeds from 620,000 BTC fat-finger error: report",
       "summary": "In February, the South Korean exchange accidentally credited 620,000 BTC (then worth around $43 billion) internally to hundreds of users.",
       "ts": "2026-08-28T02:01:59.999175+00:00"
+    },
+    {
+      "cid": "06f3f71842fc5977",
+      "message_id": 1248,
+      "title": "The Sandbox pledges 1:1 repayment after $700K bridge exploit",
+      "summary": "Eligible holders on Base and BNB Chain will receive Ethereum-based SAND from the project’s treasury, with claims expected to open within two weeks.",
+      "ts": "2026-08-28T06:37:31.909293+00:00"
+    },
+    {
+      "cid": "bc4199f3f5cb22a8",
+      "message_id": 1249,
+      "title": "California Alone Is Holding $15 Billion in Money That Belongs to Its Residents",
+      "summary": "California is sitting on $15.485 billion in unclaimed property, spanning more than 84 million individual properties that the State Controller’s Office says are waiting to be returned to nearly 39 million Californians. Texas is holding about $10.5 billion and Ohio about $4.8 billion, and estimates su",
+      "ts": "2026-08-28T06:47:51.006924+00:00"
+    },
+    {
+      "cid": "98fd7ab6b9689a85",
+      "message_id": 1250,
+      "title": "Tokenization Threatens Deposit Stability, Dallas Fed Researchers Warn",
+      "summary": "Research from the Federal Reserve Bank of Dallas warns that the rapid adoption of tokenized deposits and instant 24/7 blockchain transfers could destabilize bank liquidity and shrink long-term lending capacity. Threats to Long-Term Lending Capacity The rapid adoption of deposit tokenization and inst",
+      "ts": "2026-08-28T07:01:10.060567+00:00"
+    },
+    {
+      "cid": "663404fbbe441297",
+      "message_id": 1251,
+      "title": "XRP treasury firm Evernorth says SEC registration now effective, clearing way for Nasdaq listing",
+      "summary": "The S-4 registration statement is for Evernorth's merger with SPAC firm Armada, through which it seeks a Nasdaq listing.",
+      "ts": "2026-08-28T07:12:29.857524+00:00"
     }
   ]
 }
