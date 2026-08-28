@@ -36,7 +36,12 @@ TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 
-STATE_FILE = "posted.json"
+# Тема запуска: "crypto" или "macro". Задаётся в workflow.
+TOPIC = os.environ.get("TOPIC", "all").lower()
+
+# У каждой темы своё состояние — иначе два параллельных запуска
+# подрались бы при коммите одного и того же файла в репозиторий.
+STATE_FILE = os.environ.get("STATE_FILE", "posted.json")
 HISTORY_KEEP_HOURS = 72   # сколько часов храним историю постов для сравнения на дубли/апдейты
 HISTORY_MAX_ITEMS = 300
 
@@ -234,6 +239,41 @@ def is_same_story(tokens_a, tokens_b, threshold=0.40):
     if smaller >= 5 and common / smaller >= 0.8:
         return True
     return False
+
+
+# ---------- Тематическое разделение ----------
+
+CRYPTO_WORDS = [
+    "bitcoin", "btc", "ethereum", "eth", "crypto", "blockchain", "defi",
+    "altcoin", "solana", "xrp", "ripple", "binance", "coinbase", "kraken",
+    "stablecoin", "usdt", "usdc", "tether", "nft", "web3", "token",
+    "mining", "miner", "wallet", "exchange", "airdrop", "staking",
+    "memecoin", "dogecoin", "shiba", "layer 2", "l2", "rollup", "dao",
+    "bridge", "protocol", "onchain", "on-chain", "smart contract", "sandbox",
+    "polygon", "avalanche", "cardano", "chainlink", "uniswap", "aave",
+    "custody", "cold wallet", "hot wallet", "seed phrase", "validator",
+    "биткоин", "эфириум", "крипт", "блокчейн", "токен", "майнинг",
+]
+
+MACRO_WORDS = [
+    "fed", "federal reserve", "central bank", "ecb", "boj", "interest rate",
+    "inflation", "cpi", "gdp", "unemployment", "jobs report", "treasury",
+    "bond", "yield", "gold", "silver", "oil", "brent", "wti", "opec",
+    "s&p", "nasdaq", "dow jones", "stock", "equities", "dollar", "euro",
+    "recession", "tariff", "trade war", "commodity", "futures",
+    "ставк", "инфляц", "нефть", "золото", "ввп", "облигац", "цб",
+]
+
+
+def detect_topic(candidate):
+    """Определяет, к какой теме относится новость: crypto или macro.
+    Если попадает в обе — считаем криптой (профильная тема канала)."""
+    text = f"{candidate['title']} {candidate['summary']}".lower()
+    crypto_hits = sum(1 for w in CRYPTO_WORDS if w in text)
+    macro_hits = sum(1 for w in MACRO_WORDS if w in text)
+    if crypto_hits == 0 and macro_hits == 0:
+        return None            # не наша тема вообще
+    return "crypto" if crypto_hits >= macro_hits else "macro"
 
 
 def load_state():
@@ -629,6 +669,14 @@ def main():
     raw_candidates = fetch_rss_candidates() + fetch_polymarket_candidates()
     # первый, дешёвый слой дедупа — по точной ссылке/id, без всякого ИИ
     candidates = [c for c in raw_candidates if c["cid"] not in posted_ids]
+
+    # Отбор по теме запуска: crypto или macro. Так две параллельные
+    # задачи не публикуют одно и то же и делят ленту по смыслу.
+    if TOPIC in ("crypto", "macro"):
+        before = len(candidates)
+        candidates = [c for c in candidates if detect_topic(c) == TOPIC]
+        print(f"Тема запуска: {TOPIC}. Подходящих новостей: "
+              f"{len(candidates)} из {before}")
 
     if not candidates:
         print("Новых кандидатов нет.")
