@@ -1,5 +1,13 @@
 {
   "posted_ids": [
+    "828d512208834d33",
+    "e41c22d888be0873",
+    "fba908fca5e26e7a",
+    "d882aa4c3b99d3ed",
+    "7252fc3c589d97dd",
+    "bce2309b15fe9888",
+    "cadd1410e3a5aa5b",
+    "6beab3ea841ed533",
     "d967e1aa6c84be9a",
     "c7b2c2a83c0f4f8e",
     "1d75d28634a88363",
@@ -1354,7 +1362,14 @@
     "9dc965dd3d78f3f5",
     "d6f5b91609233d4b",
     "1d88e40a64ed699b",
-    "06f3f71842fc5977"
+    "06f3f71842fc5977",
+    "03d1aab1a562be50",
+    "1b0375ab2430808e",
+    "feea51c1128369be",
+    "4d738173ec9dff7e",
+    "09fe8fdca434ad06",
+    "0c86380edbc4ffcc",
+    "1067420f8955b11b"
   ],
   "history": [
     {
@@ -1363,7 +1378,14 @@
       "title": "The Sandbox pledges 1:1 repayment after $700K bridge exploit",
       "summary": "Eligible holders on Base and BNB Chain will receive Ethereum-based SAND from the project’s treasury, with claims expected to open within two weeks.",
       "ts": "2026-08-28T11:43:28.966319+00:00"
+    },
+    {
+      "cid": "1067420f8955b11b",
+      "message_id": 1260,
+      "title": "Indiana power provider proposes $59 million rate cut for state, says data centers and other large customers are driving increased revenue — move could potentially save residential users $100 annually",
+      "summary": "I&amp;M, which serves part of Indiana, says that it plans to cut electricity prices for the state, resulting in savings of about $59 million for residential users. This translates to about $100 a year for each home, with the savings coming from increased revenue from larger consumers like data cente",
+      "ts": "2026-08-28T13:08:32.502047+00:00"
     }
   ],
-  "last_post_ts": "2026-08-28T11:43:28.966337+00:00"
+  "last_post_ts": "2026-08-28T13:08:32.502072+00:00"
 }
