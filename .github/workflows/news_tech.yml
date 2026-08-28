@@ -2,14 +2,11 @@ name: Zerno tech news
 
 on:
   schedule:
-    # НЕ круглые минуты: на :00/:15/:30 приходится пик нагрузки на
-    # планировщик GitHub, и бесплатные задачи там часто отбрасываются.
-    # Смещение на 3/18/33/48 заметно повышает шанс запуска.
-    # Техника: один пост в час + дублирующая страховка.
-    # Минуты подобраны так, чтобы не совпадать с крипто (4,11,34,41)
-    # и макро (19,26,49,56) задачами.
-    - cron: "14 * * * *"
-    - cron: "31 * * * *"
+    # Техника: 1 пост в час + страховка.
+    # Задачи разнесены с шагом 6 минут, чтобы их запуски не
+    # накладывались и не конфликтовали при сохранении состояния.
+    - cron: "26 * * * *"
+    - cron: "56 * * * *"
   workflow_dispatch: {}   # позволяет запустить вручную кнопкой в GitHub
 
 permissions:
@@ -52,14 +49,30 @@ jobs:
 
       # if: always() — состояние сохраняется даже если скрипт упал,
       # иначе после каждой ошибки бот заново перебирал бы те же новости
-      - name: Save posted.json back to repo
+      # Состояние обязано попасть в репозиторий: иначе следующий запуск
+      # не узнает о публикации и выдаст дубль. Три задачи пушат в один
+      # репозиторий, поэтому конфликты штатны — делаем несколько попыток.
+      - name: Save state back to repo
         if: always()
         run: |
-          git config user.name "alphafeed-bot"
+          git config user.name "zerno-bot"
           git config user.email "actions@github.com"
           git add posted_tech.json
-          git diff --staged --quiet && echo "нет изменений" && exit 0
-          git commit -m "update posted state"
-          # подтягиваем чужие изменения, чтобы push не отвалился
-          git pull --rebase --autostash origin ${GITHUB_REF_NAME} || true
-          git push || echo "push не удался, состояние сохранится в следующий раз"
+          if git diff --staged --quiet; then
+            echo "нет изменений состояния"
+            exit 0
+          fi
+          git commit -m "state: posted_tech.json"
+          for i in 1 2 3 4 5; do
+            git fetch origin "$GITHUB_REF_NAME"
+            # свои изменения важнее: при конфликте оставляем нашу версию
+            git rebase -X ours "origin/$GITHUB_REF_NAME" || git rebase --abort
+            if git push origin "HEAD:$GITHUB_REF_NAME"; then
+              echo "состояние сохранено с попытки $i"
+              exit 0
+            fi
+            echo "попытка $i не удалась, жду..."
+            sleep $((RANDOM % 10 + 3))
+          done
+          echo "::error::НЕ УДАЛОСЬ сохранить состояние — возможны дубли"
+          exit 1
