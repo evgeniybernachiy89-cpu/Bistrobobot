@@ -53,6 +53,11 @@ MAX_POSTS_PER_RUN = int(os.environ.get("MAX_POSTS_PER_RUN", "5"))
 # ровно по минутам cron. Запуск остаётся коротким.
 JITTER_MAX_MINUTES = int(os.environ.get("JITTER_MAX_MINUTES", "7"))
 
+# Целевой темп публикаций в час. Если планировщик GitHub пропустил
+# запуски (на бесплатном тарифе это обычное дело), бот наверстает:
+# опубликует столько постов, сколько "задолжал" за простой.
+POSTS_PER_HOUR = int(os.environ.get("POSTS_PER_HOUR", "4"))
+
 # Публиковать только новости, помеченные Gemini как важные (importance=top).
 # Если поставить "false" — вернётся публикация всего подряд.
 TOP_ONLY = os.environ.get("TOP_ONLY", "true").lower() == "true"
@@ -234,7 +239,7 @@ def is_same_story(tokens_a, tokens_b, threshold=0.40):
 def load_state():
     """Загружает состояние. Устойчиво к старому формату файла (без history)
     и к битому/пустому файлу — в этих случаях недостающие ключи создаются."""
-    state = {"posted_ids": [], "history": []}
+    state = {"posted_ids": [], "history": [], "last_post_ts": None}
     if os.path.exists(STATE_FILE):
         try:
             with open(STATE_FILE, "r", encoding="utf-8") as f:
@@ -242,6 +247,7 @@ def load_state():
             if isinstance(loaded, dict):
                 state["posted_ids"] = loaded.get("posted_ids", []) or []
                 state["history"] = loaded.get("history", []) or []
+                state["last_post_ts"] = loaded.get("last_post_ts")
         except Exception as e:
             print(f"Не смог прочитать {STATE_FILE}, начинаю с чистого состояния: {e}")
     return state
@@ -750,19 +756,50 @@ def main():
             if hits:
                 ranked.append((hits, c))
         ranked.sort(key=lambda x: -x[0])
-        for hits, c in ranked[:MAX_POSTS_PER_RUN]:
+        for hits, c in ranked[:MAX_POSTS_PER_RUN]:  # обрежется квотой ниже
             scored.append((c, {"importance": "normal",
                                "update_of_message_id": None}))
         print(f"Аварийный отбор дал постов: {len(scored)}")
 
+    # --- Сколько постов публиковать в этот запуск ---
+    # Планировщик GitHub на бесплатном тарифе регулярно пропускает
+    # запуски. Поэтому ориентируемся не на "1 пост за запуск", а на
+    # время, прошедшее с последней публикации: сколько задолжали —
+    # столько и публикуем (в пределах MAX_POSTS_PER_RUN).
+    now = datetime.datetime.now(datetime.timezone.utc)
+    last_ts = state.get("last_post_ts")
+    interval = 60 / max(POSTS_PER_HOUR, 1)      # минут на один пост
+    quota = 1
+    if last_ts:
+        try:
+            elapsed_min = (now - datetime.datetime.fromisoformat(last_ts)).total_seconds() / 60
+            quota = int(elapsed_min // interval)
+            if quota < 1:
+                # Интервал ещё не выдержан. Такое бывает штатно: расписаний
+                # два (для надёжности), и второе срабатывает вскоре после
+                # первого. Просто выходим, чтобы не превысить темп.
+                print(f"С последней публикации прошло {int(elapsed_min)} мин "
+                      f"(нужно {int(interval)}) — пропускаю запуск")
+                state["posted_ids"] = posted_order
+                state["history"] = history
+                save_state(state)
+                return
+            if quota > 1:
+                print(f"С последней публикации прошло {int(elapsed_min)} мин — "
+                      f"наверстываю {min(quota, MAX_POSTS_PER_RUN)} постов")
+        except Exception as e:
+            print(f"Не смог разобрать last_post_ts ({e}), публикую один пост")
+            quota = 1
+    quota = min(quota, MAX_POSTS_PER_RUN)
+
     # жёсткий потолок на количество постов за запуск
-    if len(scored) > MAX_POSTS_PER_RUN:
-        print(f"Кандидатов после фильтра: {len(scored)}, публикую топ-{MAX_POSTS_PER_RUN}")
-        deferred = scored[MAX_POSTS_PER_RUN:]
+    if len(scored) > quota:
+        print(f"Кандидатов после фильтра: {len(scored)}, публикую топ-{quota}")
+        deferred = scored[quota:]
         # отложенные на следующий запуск — снимаем с них отметку "обработан"
         deferred_ids = {c["cid"] for c, _ in deferred}
         rejected_ids = [rid for rid in rejected_ids if rid not in deferred_ids]
-        scored = scored[:MAX_POSTS_PER_RUN]
+        scored = scored[:quota]
 
     # всё, что Gemini отсеял, помечаем как обработанное — чтобы не гонять
     # одни и те же новости через Gemini на каждом запуске
@@ -817,6 +854,8 @@ def main():
             # уйдёт в канал повторно на следующем часу
             state["posted_ids"] = posted_order
             state["history"] = history
+            state["last_post_ts"] = datetime.datetime.now(
+                datetime.timezone.utc).isoformat()
             save_state(state)
 
     state["posted_ids"] = posted_order
