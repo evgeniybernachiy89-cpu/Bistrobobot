@@ -1583,7 +1583,11 @@
     "aae91f7ea4f24a34",
     "131c8e2dab78f085",
     "2c5f6f57913dedf0",
-    "1a4f38afe1792847"
+    "1a4f38afe1792847",
+    "2ef75b11dcb03c9b",
+    "6914dfef704b1a57",
+    "d3ed5b3bcf647f93",
+    "02769ee67ed5a65f"
   ],
   "history": [
     {
@@ -1739,7 +1743,14 @@
       "title": "What Would XRP Be Worth at a $500 Billion Market Cap? The Answer May Surprise You",
       "summary": "Is XRP heading for a market cap nearly 2x higher than ETH's current one?",
       "ts": "2026-08-29T04:12:02.365181+00:00"
+    },
+    {
+      "cid": "d3ed5b3bcf647f93",
+      "message_id": 1318,
+      "title": "Up 35% in August: Why Every XRP Holder Needs to Watch September 15",
+      "summary": "XRP ends August with a 35% surge, but the true macro test arrives on Sept. 15.",
+      "ts": "2026-08-29T04:25:45.265773+00:00"
     }
   ],
-  "last_post_ts": "2026-08-29T04:12:02.365204+00:00"
+  "last_post_ts": "2026-08-29T04:25:45.265799+00:00"
 }
