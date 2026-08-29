@@ -1580,7 +1580,10 @@
     "a315de53fdf2e7e8",
     "d5c239a3e057f14d",
     "454c87ccb23cc1c0",
-    "aae91f7ea4f24a34"
+    "aae91f7ea4f24a34",
+    "131c8e2dab78f085",
+    "2c5f6f57913dedf0",
+    "1a4f38afe1792847"
   ],
   "history": [
     {
@@ -1729,7 +1732,14 @@
       "title": "Evernorth XRP Treasury Deal Advances After SEC Filing Takes Effect",
       "summary": "The SEC cleared a key regulatory step in Evernorth&#8217;s proposed merger, moving the XRP treasury company closer to a Nasdaq listing under the ticker XRPN. Evernorth Merger Moves to Shareholder Vote Evernorth Holdings Inc. moved closer to its planned Nasdaq listing after the U.S. Securities and Ex",
       "ts": "2026-08-29T02:38:04.081559+00:00"
+    },
+    {
+      "cid": "1a4f38afe1792847",
+      "message_id": 1317,
+      "title": "What Would XRP Be Worth at a $500 Billion Market Cap? The Answer May Surprise You",
+      "summary": "Is XRP heading for a market cap nearly 2x higher than ETH's current one?",
+      "ts": "2026-08-29T04:12:02.365181+00:00"
     }
   ],
-  "last_post_ts": "2026-08-29T02:38:04.081584+00:00"
+  "last_post_ts": "2026-08-29T04:12:02.365204+00:00"
 }
