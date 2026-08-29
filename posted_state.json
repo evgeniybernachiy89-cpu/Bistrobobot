@@ -1561,7 +1561,9 @@
     "2efb5be1a1fc12a2",
     "da4ba6ecaa95fe4d",
     "754331d42869b0bc",
-    "f3ba1d50bdc007cd"
+    "f3ba1d50bdc007cd",
+    "37b5c2dcd2902d21",
+    "6eb088a972f0756b"
   ],
   "history": [
     {
@@ -1696,7 +1698,14 @@
       "title": "Bitcoin Traders Watch Fed Chair Warsh for Clues—And Get Nothing",
       "summary": "Fed Chair Warsh's first Jackson Hole keynote doubled down on giving markets zero rate hints as inflation runs hot and Bitcoin traders wait on September's call.",
       "ts": "2026-08-29T02:05:41.981094+00:00"
+    },
+    {
+      "cid": "6eb088a972f0756b",
+      "message_id": 1313,
+      "title": "BlackRock just pulled in 115% of all Bitcoin ETF inflows in a single day as rival funds bleed cash",
+      "summary": "IBIT exceeded the market’s $242.3 million net gain as five smaller positive funds failed to keep non-IBIT flows above zero.\nThe post BlackRock just pulled in 115% of all Bitcoin ETF inflows in a single day as rival funds bleed cash appeared first on CryptoSlate.",
+      "ts": "2026-08-29T02:20:30.253625+00:00"
     }
   ],
-  "last_post_ts": "2026-08-29T02:05:41.981119+00:00"
+  "last_post_ts": "2026-08-29T02:20:30.253648+00:00"
 }
