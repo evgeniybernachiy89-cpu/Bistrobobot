@@ -1550,7 +1550,9 @@
     "59bf022196ecbac3",
     "3841a41a71e015da",
     "4b5192ea0b03a285",
-    "efc3fc33c9733269"
+    "efc3fc33c9733269",
+    "fa0bbeafa7bcabad",
+    "8877c55cf57e2bed"
   ],
   "history": [
     {
@@ -1664,7 +1666,14 @@
       "title": "Bitcoin ETFs Cross $100 Billion With $242 Million Inflow",
       "summary": "Bitcoin and ether ETFs extended their inflow streaks to nine sessions on Thursday, attracting $242.24 million and $234.51 million, respectively. Solana, HYPE and XRP funds also posted strong gains as crypto ETF demand broadened across the market. Bitcoin, Ether ETFs Add $476.75M as 9-Day Streak Exte",
       "ts": "2026-08-29T01:22:29.844118+00:00"
+    },
+    {
+      "cid": "8877c55cf57e2bed",
+      "message_id": 1308,
+      "title": "Bitcoin dips to $78.4K as Fed’s Warsh downplays softer inflation prints",
+      "summary": "Bitcoin failed to make a decisive break above $80,000 as traders digested Fed Chair Kevin Warsh’s Jackson Hole keynote speech, which remained wary of US inflation trends.",
+      "ts": "2026-08-29T01:38:01.620145+00:00"
     }
   ],
-  "last_post_ts": "2026-08-29T01:22:29.844142+00:00"
+  "last_post_ts": "2026-08-29T01:38:01.620168+00:00"
 }
