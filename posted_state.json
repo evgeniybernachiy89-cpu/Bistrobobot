@@ -1587,7 +1587,8 @@
     "2ef75b11dcb03c9b",
     "6914dfef704b1a57",
     "d3ed5b3bcf647f93",
-    "02769ee67ed5a65f"
+    "02769ee67ed5a65f",
+    "956faf7a124e1480"
   ],
   "history": [
     {
@@ -1750,7 +1751,14 @@
       "title": "Up 35% in August: Why Every XRP Holder Needs to Watch September 15",
       "summary": "XRP ends August with a 35% surge, but the true macro test arrives on Sept. 15.",
       "ts": "2026-08-29T04:25:45.265773+00:00"
+    },
+    {
+      "cid": "956faf7a124e1480",
+      "message_id": 1320,
+      "title": "Bitcoin wallets untouched for 10 years moved $40 million. Most avoided exchanges",
+      "summary": "",
+      "ts": "2026-08-29T04:40:35.125504+00:00"
     }
   ],
-  "last_post_ts": "2026-08-29T04:25:45.265799+00:00"
+  "last_post_ts": "2026-08-29T04:40:35.125532+00:00"
 }
