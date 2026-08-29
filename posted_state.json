@@ -1563,7 +1563,9 @@
     "754331d42869b0bc",
     "f3ba1d50bdc007cd",
     "37b5c2dcd2902d21",
-    "6eb088a972f0756b"
+    "6eb088a972f0756b",
+    "8907c990e5c7e6d0",
+    "5e0f167915016e6e"
   ],
   "history": [
     {
@@ -1705,7 +1707,14 @@
       "title": "BlackRock just pulled in 115% of all Bitcoin ETF inflows in a single day as rival funds bleed cash",
       "summary": "IBIT exceeded the market’s $242.3 million net gain as five smaller positive funds failed to keep non-IBIT flows above zero.\nThe post BlackRock just pulled in 115% of all Bitcoin ETF inflows in a single day as rival funds bleed cash appeared first on CryptoSlate.",
       "ts": "2026-08-29T02:20:30.253625+00:00"
+    },
+    {
+      "cid": "5e0f167915016e6e",
+      "message_id": 1315,
+      "title": "Evernorth XRP Treasury Deal Advances After SEC Filing Takes Effect",
+      "summary": "The SEC cleared a key regulatory step in Evernorth&#8217;s proposed merger, moving the XRP treasury company closer to a Nasdaq listing under the ticker XRPN. Evernorth Merger Moves to Shareholder Vote Evernorth Holdings Inc. moved closer to its planned Nasdaq listing after the U.S. Securities and Ex",
+      "ts": "2026-08-29T02:38:04.081559+00:00"
     }
   ],
-  "last_post_ts": "2026-08-29T02:20:30.253648+00:00"
+  "last_post_ts": "2026-08-29T02:38:04.081584+00:00"
 }
