@@ -1534,7 +1534,9 @@
     "0b659717321f75d6",
     "b5113d4b27ad9b63",
     "ffa22f1bf8847330",
-    "aac41ef70313c27e"
+    "aac41ef70313c27e",
+    "1e94dcffb05c311c",
+    "8672c2dc0c319be0"
   ],
   "history": [
     {
@@ -1620,7 +1622,14 @@
       "title": "OCC and FDIC finalize rule defining ‘unsafe practices’ to combat crypto debanking",
       "summary": "OCC bank charter approvals, some tied to crypto firms, have increased during Trump's second term.",
       "ts": "2026-08-29T00:26:21.179530+00:00"
+    },
+    {
+      "cid": "8672c2dc0c319be0",
+      "message_id": 1303,
+      "title": "BlackRock’s Bitcoin ETF regains key weekly options expiries after rule overhaul",
+      "summary": "A new Tier 2 framework lowered qualifying gates to $25 billion in AUM and 5 million monthly options sides, bringing IBIT back during Q3.\nThe post BlackRock’s Bitcoin ETF regains key weekly options expiries after rule overhaul appeared first on CryptoSlate.",
+      "ts": "2026-08-29T00:41:01.861786+00:00"
     }
   ],
-  "last_post_ts": "2026-08-29T00:26:21.179590+00:00"
+  "last_post_ts": "2026-08-29T00:41:01.861805+00:00"
 }
