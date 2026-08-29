@@ -1547,7 +1547,10 @@
     "39fb4c2db577e8b3",
     "44b354a766d3cf99",
     "46a0ec28f5ece9ff",
-    "59bf022196ecbac3"
+    "59bf022196ecbac3",
+    "3841a41a71e015da",
+    "4b5192ea0b03a285",
+    "efc3fc33c9733269"
   ],
   "history": [
     {
@@ -1654,7 +1657,14 @@
       "title": "Bitwise fund is first Solana ETF to hit $1 billion AUM",
       "summary": "The Bitwise Solana Staking ETF (ticker BSOL) crossed $1 billion AUM on Friday, less than a year after its launch.",
       "ts": "2026-08-29T01:10:15.245219+00:00"
+    },
+    {
+      "cid": "efc3fc33c9733269",
+      "message_id": 1307,
+      "title": "Bitcoin ETFs Cross $100 Billion With $242 Million Inflow",
+      "summary": "Bitcoin and ether ETFs extended their inflow streaks to nine sessions on Thursday, attracting $242.24 million and $234.51 million, respectively. Solana, HYPE and XRP funds also posted strong gains as crypto ETF demand broadened across the market. Bitcoin, Ether ETFs Add $476.75M as 9-Day Streak Exte",
+      "ts": "2026-08-29T01:22:29.844118+00:00"
     }
   ],
-  "last_post_ts": "2026-08-29T01:10:15.245242+00:00"
+  "last_post_ts": "2026-08-29T01:22:29.844142+00:00"
 }
