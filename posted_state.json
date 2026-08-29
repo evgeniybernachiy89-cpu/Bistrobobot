@@ -1552,7 +1552,13 @@
     "4b5192ea0b03a285",
     "efc3fc33c9733269",
     "fa0bbeafa7bcabad",
-    "8877c55cf57e2bed"
+    "8877c55cf57e2bed",
+    "828b5d8f5c23c2cd",
+    "efdb9c6ce48bee82",
+    "0fb5e158abe32473",
+    "7825dd63cfa2ccbd",
+    "67be1ef7ecb60139",
+    "2efb5be1a1fc12a2"
   ],
   "history": [
     {
@@ -1673,7 +1679,14 @@
       "title": "Bitcoin dips to $78.4K as Fed’s Warsh downplays softer inflation prints",
       "summary": "Bitcoin failed to make a decisive break above $80,000 as traders digested Fed Chair Kevin Warsh’s Jackson Hole keynote speech, which remained wary of US inflation trends.",
       "ts": "2026-08-29T01:38:01.620145+00:00"
+    },
+    {
+      "cid": "2efb5be1a1fc12a2",
+      "message_id": 1310,
+      "title": "Solana (SOL) Governance Voting Goes Wild: Kraken Changes Vote to Save $1.5 Billion Inflation Plan",
+      "summary": "Solana governance hits a crisis as Kraken flips its vote on the $1.5 billion inflation plan under intense retail community pressure.",
+      "ts": "2026-08-29T01:51:08.260304+00:00"
     }
   ],
-  "last_post_ts": "2026-08-29T01:38:01.620168+00:00"
+  "last_post_ts": "2026-08-29T01:51:08.260364+00:00"
 }
