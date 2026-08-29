@@ -1538,7 +1538,16 @@
     "1e94dcffb05c311c",
     "8672c2dc0c319be0",
     "ab3918e90967ce09",
-    "371ab5d2fe96ba20"
+    "371ab5d2fe96ba20",
+    "432aa0c1015499a7",
+    "8b06894386d0100e",
+    "83f2043aacb6a696",
+    "7726bfa802ee97b8",
+    "934d1551ad863bcc",
+    "39fb4c2db577e8b3",
+    "44b354a766d3cf99",
+    "46a0ec28f5ece9ff",
+    "59bf022196ecbac3"
   ],
   "history": [
     {
@@ -1638,7 +1647,14 @@
       "title": "261 Billion SHIB Netflow Stalls Price Recovery: Shiba Inu Risks Losing $0.000005",
       "summary": "Shiba Inu has slowed down on its recent price rally as selling pressure appears to be mounting again, suggesting that investors may be taking profits.",
       "ts": "2026-08-29T00:56:55.481599+00:00"
+    },
+    {
+      "cid": "59bf022196ecbac3",
+      "message_id": 1306,
+      "title": "Bitwise fund is first Solana ETF to hit $1 billion AUM",
+      "summary": "The Bitwise Solana Staking ETF (ticker BSOL) crossed $1 billion AUM on Friday, less than a year after its launch.",
+      "ts": "2026-08-29T01:10:15.245219+00:00"
     }
   ],
-  "last_post_ts": "2026-08-29T00:56:55.481622+00:00"
+  "last_post_ts": "2026-08-29T01:10:15.245242+00:00"
 }
