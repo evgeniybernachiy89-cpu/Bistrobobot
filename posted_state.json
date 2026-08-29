@@ -1523,7 +1523,18 @@
     "554e765e7a2efe59",
     "5f45be9ebb65c6fc",
     "2174eebe45c1e245",
-    "b2278217c2d20c6a"
+    "b2278217c2d20c6a",
+    "b0cec658dc37b054",
+    "f789dffe7d1694e9",
+    "a4660dada4cfceca",
+    "e5a4081e7ae34500",
+    "8ee0ea40b045cc19",
+    "d116814049948de0",
+    "6fcc76273d2669c5",
+    "0b659717321f75d6",
+    "b5113d4b27ad9b63",
+    "ffa22f1bf8847330",
+    "aac41ef70313c27e"
   ],
   "history": [
     {
@@ -1602,7 +1613,14 @@
       "title": "Crypto faces $3.63 billion security crisis despite audited protocols — Details",
       "summary": "Why is crypto insurance coverage falling despite a rise in the frequency of hacks?",
       "ts": "2026-08-29T00:11:33.153384+00:00"
+    },
+    {
+      "cid": "aac41ef70313c27e",
+      "message_id": 1302,
+      "title": "OCC and FDIC finalize rule defining ‘unsafe practices’ to combat crypto debanking",
+      "summary": "OCC bank charter approvals, some tied to crypto firms, have increased during Trump's second term.",
+      "ts": "2026-08-29T00:26:21.179530+00:00"
     }
   ],
-  "last_post_ts": "2026-08-29T00:11:33.153407+00:00"
+  "last_post_ts": "2026-08-29T00:26:21.179590+00:00"
 }
