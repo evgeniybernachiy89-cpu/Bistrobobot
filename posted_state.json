@@ -1588,7 +1588,9 @@
     "6914dfef704b1a57",
     "d3ed5b3bcf647f93",
     "02769ee67ed5a65f",
-    "956faf7a124e1480"
+    "956faf7a124e1480",
+    "9dcaee2de4fbebee",
+    "b14b56e21ed4e82d"
   ],
   "history": [
     {
@@ -1758,7 +1760,14 @@
       "title": "Bitcoin wallets untouched for 10 years moved $40 million. Most avoided exchanges",
       "summary": "",
       "ts": "2026-08-29T04:40:35.125504+00:00"
+    },
+    {
+      "cid": "b14b56e21ed4e82d",
+      "message_id": 1322,
+      "title": "Polymarket: Exact Score: 1. FSV Mainz 05 0 - 0 SC Paderborn 07?",
+      "summary": "In the upcoming Bundesliga game between 1. FSV Mainz 05 and SC Paderborn 07, scheduled for August 29, 2026 at 9:30 AM ET: This market will resolve based on the final score of the 1. FSV Mainz 05 vs. SC Paderborn 07 match originally scheduled for August 29, 2026 at 9:30 AM ET, considering only the re",
+      "ts": "2026-08-29T04:55:58.480692+00:00"
     }
   ],
-  "last_post_ts": "2026-08-29T04:40:35.125532+00:00"
+  "last_post_ts": "2026-08-29T04:55:58.480719+00:00"
 }
