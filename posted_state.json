@@ -1519,7 +1519,11 @@
     "71a6f6c5f32af03e",
     "af8059dfc59afa16",
     "d90cd7ca7db45163",
-    "2a001ff41d225861"
+    "2a001ff41d225861",
+    "554e765e7a2efe59",
+    "5f45be9ebb65c6fc",
+    "2174eebe45c1e245",
+    "b2278217c2d20c6a"
   ],
   "history": [
     {
@@ -1591,7 +1595,14 @@
       "title": "North Korea Hackers Break Silence With $19.4 Million Bitcoin (BTC) Move: Time to Worry?",
       "summary": "Lazarus Group moves $19.4 million in dormant Bitcoin, leaving the market guessing if this sudden North Korean transfer is enough to trigger a crash.",
       "ts": "2026-08-28T23:56:00.586015+00:00"
+    },
+    {
+      "cid": "b2278217c2d20c6a",
+      "message_id": 1300,
+      "title": "Crypto faces $3.63 billion security crisis despite audited protocols — Details",
+      "summary": "Why is crypto insurance coverage falling despite a rise in the frequency of hacks?",
+      "ts": "2026-08-29T00:11:33.153384+00:00"
     }
   ],
-  "last_post_ts": "2026-08-28T23:56:00.586043+00:00"
+  "last_post_ts": "2026-08-29T00:11:33.153407+00:00"
 }
