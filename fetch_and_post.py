@@ -39,6 +39,14 @@ GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 # Тема запуска: "crypto" или "macro". Задаётся в workflow.
 TOPIC = os.environ.get("TOPIC", "all").lower()
 
+# Последовательность тем при TOPIC=rotate. Крипта чаще, как профильная.
+TOPIC_ROTATION = [t.strip() for t in os.environ.get(
+    "TOPIC_ROTATION", "crypto,macro,crypto,tech").split(",") if t.strip()]
+
+# Минимальный интервал между постами, минут. Единый счётчик для всех
+# тем — именно он гасит пачки запусков, которые GitHub выдаёт залпом.
+MIN_INTERVAL_MINUTES = float(os.environ.get("MIN_INTERVAL_MINUTES", "14"))
+
 # У каждой темы своё состояние — иначе два параллельных запуска
 # подрались бы при коммите одного и того же файла в репозиторий.
 STATE_FILE = os.environ.get("STATE_FILE", "posted.json")
@@ -319,7 +327,8 @@ def detect_topic(candidate):
 def load_state():
     """Загружает состояние. Устойчиво к старому формату файла (без history)
     и к битому/пустому файлу — в этих случаях недостающие ключи создаются."""
-    state = {"posted_ids": [], "history": [], "last_post_ts": None}
+    state = {"posted_ids": [], "history": [], "last_post_ts": None,
+             "rotation_index": 0}
     if os.path.exists(STATE_FILE):
         try:
             with open(STATE_FILE, "r", encoding="utf-8") as f:
@@ -328,6 +337,7 @@ def load_state():
                 state["posted_ids"] = loaded.get("posted_ids", []) or []
                 state["history"] = loaded.get("history", []) or []
                 state["last_post_ts"] = loaded.get("last_post_ts")
+                state["rotation_index"] = loaded.get("rotation_index", 0)
         except Exception as e:
             print(f"Не смог прочитать {STATE_FILE}, начинаю с чистого состояния: {e}")
 
@@ -335,7 +345,7 @@ def load_state():
     # Без этого новость, попавшая не в свою тему, вышла бы дважды:
     # задачи не видят публикаций друг друга.
     others = [LEGACY_STATE_FILE, "posted_crypto.json",
-              "posted_macro.json", "posted_tech.json"]
+              "posted_macro.json", "posted_tech.json", "posted_state.json"]
     known = set(state["posted_ids"])
     borrowed = []
     for other in others:
@@ -467,9 +477,14 @@ def _translate_mymemory(text):
 
     translated = []
     for part in chunks(text):
+        params = {"q": part, "langpair": "en|ru"}
+        # Указание email поднимает суточный лимит с 5 000 до 50 000 слов.
+        email = os.environ.get("MYMEMORY_EMAIL", "").strip()
+        if email:
+            params["de"] = email
         r = requests.get(
             "https://api.mymemory.translated.net/get",
-            params={"q": part, "langpair": "en|ru"},
+            params=params,
             timeout=15,
         )
         r.raise_for_status()
@@ -479,6 +494,61 @@ def _translate_mymemory(text):
             raise RuntimeError(f"MyMemory пустой ответ: {data.get('responseDetails')}")
         translated.append(piece)
     return " ".join(translated).strip()
+
+
+# Кэш переводов: одни и те же фразы (особенно куски описаний) часто
+# повторяются между источниками — без кэша они жгут суточный лимит.
+TRANSLATION_CACHE_FILE = os.environ.get(
+    "TRANSLATION_CACHE", "translation_cache.json")
+_cache = None
+
+
+def _load_cache():
+    global _cache
+    if _cache is None:
+        try:
+            with open(TRANSLATION_CACHE_FILE, "r", encoding="utf-8") as f:
+                _cache = json.load(f)
+        except Exception:
+            _cache = {}
+    return _cache
+
+
+def _save_cache():
+    if _cache is None:
+        return
+    try:
+        # держим последние 2000 записей, чтобы файл не разрастался
+        items = list(_cache.items())[-2000:]
+        with open(TRANSLATION_CACHE_FILE, "w", encoding="utf-8") as f:
+            json.dump(dict(items), f, ensure_ascii=False)
+    except Exception as e:
+        print(f"Не смог сохранить кэш переводов: {e}")
+
+
+def _translate_lingva(text):
+    """Lingva — открытые зеркала Google Translate без ключей и лимитов.
+    Пробуем несколько зеркал: они периодически ложатся поодиночке."""
+    import urllib.parse
+    mirrors = [
+        "https://lingva.ml/api/v1/en/ru/",
+        "https://translate.plausibility.cloud/api/v1/en/ru/",
+        "https://lingva.lunar.icu/api/v1/en/ru/",
+    ]
+    encoded = urllib.parse.quote(text[:2000], safe="")
+    last = None
+    for base in mirrors:
+        try:
+            r = requests.get(base + encoded, timeout=15)
+            r.raise_for_status()
+            result = (r.json() or {}).get("translation", "").strip()
+            if result:
+                return result
+        except Exception as e:
+            last = e
+    if last:
+        raise last
+    return ""
 
 
 def translate_to_ru(text):
@@ -492,6 +562,11 @@ def translate_to_ru(text):
     if _is_mostly_russian(text):
         return text
 
+    cache = _load_cache()
+    key = hashlib.sha256(text.encode("utf-8")).hexdigest()[:20]
+    if key in cache:
+        return cache[key]
+
     # текст длиннее ~4500 символов Google обрезает — режем сами
     last_error = None
     if len(text) > 4000:
@@ -503,10 +578,22 @@ def translate_to_ru(text):
     try:
         result = _translate_mymemory(text)
         if result:
+            cache[key] = result
+            _save_cache()
             return result
     except Exception as e:
         last_error = e
-        print(f"MyMemory не ответил ({e}), пробую Google…")
+        print(f"MyMemory не ответил ({str(e)[:80]}), пробую Lingva…")
+
+    try:
+        result = _translate_lingva(text)
+        if result:
+            cache[key] = result
+            _save_cache()
+            return result
+    except Exception as e:
+        last_error = e
+        print(f"Lingva не ответила ({str(e)[:80]}), пробую Google…")
 
     endpoints = [
         "https://translate.googleapis.com/translate_a/single",
@@ -516,12 +603,14 @@ def translate_to_ru(text):
         try:
             result = _try_translate_once(text, endpoint)
             if result:
+                cache[key] = result
+                _save_cache()
                 return result
         except Exception as e:
             last_error = e
 
-    print(f"!!! ПЕРЕВОД НЕ УДАЛСЯ ни через MyMemory, ни через Google — "
-          f"публикую оригинал. Причина: {last_error}")
+    print(f"!!! ПЕРЕВОД НЕ УДАЛСЯ ни одним из трёх сервисов — "
+          f"публикую оригинал. Причина: {str(last_error)[:120]}")
     return text
 
 
@@ -768,6 +857,30 @@ def main():
 
     history = state["history"]
 
+    # --- Единый интервал: главная защита от "залпов" GitHub ---
+    # Планировщик копит пропущенные запуски и выбрасывает их пачкой.
+    # Один счётчик времени на все темы гарантирует, что из пачки
+    # выйдет ровно один пост, а не четыре подряд.
+    now = datetime.datetime.now(datetime.timezone.utc)
+    last_ts = state.get("last_post_ts")
+    if last_ts:
+        try:
+            gap = (now - datetime.datetime.fromisoformat(last_ts)).total_seconds() / 60
+            if gap < MIN_INTERVAL_MINUTES:
+                print(f"С последней публикации прошло {gap:.0f} мин "
+                      f"(нужно {MIN_INTERVAL_MINUTES:.0f}) — пропускаю запуск")
+                return
+        except Exception as e:
+            print(f"Не смог разобрать last_post_ts: {e}")
+
+    # --- Тема этого запуска ---
+    global TOPIC
+    if TOPIC == "rotate":
+        idx = int(state.get("rotation_index", 0)) % len(TOPIC_ROTATION)
+        TOPIC = TOPIC_ROTATION[idx]
+        state["rotation_index"] = idx + 1
+        print(f"Ротация тем: очередь #{idx} → {TOPIC}")
+
     raw_candidates = fetch_rss_candidates() + fetch_polymarket_candidates()
     # первый, дешёвый слой дедупа — по точной ссылке/id, без всякого ИИ
     candidates = [c for c in raw_candidates if c["cid"] not in posted_ids]
@@ -926,7 +1039,7 @@ def main():
             # Допуск: метки расписания не совпадают идеально с интервалом.
             # Без него пост в :10 при интервале 30 мин блокировал бы метки
             # :32 (22 мин) и :38 (28 мин), и вместо 2 постов выходил бы 1.
-            quota = int((elapsed_min * 1.35) // interval)
+            quota = 1 if os.environ.get("TOPIC") == "rotate" else int((elapsed_min * 1.35) // interval)
             if quota < 1:
                 # Интервал ещё не выдержан. Такое бывает штатно: расписаний
                 # два (для надёжности), и второе срабатывает вскоре после
