@@ -103,6 +103,7 @@ FEEDS = [
     "https://watcher.guru/news/feed",
     "https://forklog.com/feed",              # русскоязычный крипто-источник
     "https://ru.investing.com/rss/news.rss", # финансы/макро на русском
+    "http://feeds.marketwatch.com/marketwatch/topstories/",  # ФРС, рынки, акции
 ]
 
 # Ленты для темы "tech" — подключаются только при TOPIC=tech,
@@ -895,6 +896,14 @@ def main():
 
     if not candidates:
         print("Новых кандидатов нет.")
+        # ВАЖНО: rotation_index уже поменялся в памяти (строка выше), но
+        # без сохранения он теряется — следующий запуск снова прочитает
+        # старое значение и опять выберет ту же тему. Если у неё 0
+        # подходящих новостей (частый случай для macro), ротация
+        # зависает на ней навсегда, и бот замолкает насовсем.
+        state["posted_ids"] = posted_order
+        state["history"] = history
+        save_state(state)
         return
 
     # --- Локальный дедуп (работает всегда, даже без Gemini) ---
