@@ -552,36 +552,15 @@ def _translate_lingva(text):
     return ""
 
 
-def translate_to_ru(text):
-    """Перевод на русский через бесплатные endpoint'ы Google.
-    Бесплатные эндпоинты периодически отвечают 429/403 на запросы из
-    облака (в т.ч. с IP GitHub Actions), поэтому пробуем несколько раз
-    и через разные адреса."""
-    if not text.strip():
-        return text
-
-    if _is_mostly_russian(text):
-        return text
-
-    cache = _load_cache()
-    key = hashlib.sha256(text.encode("utf-8")).hexdigest()[:20]
-    if key in cache:
-        return cache[key]
-
-    # текст длиннее ~4500 символов Google обрезает — режем сами
+def _try_all_translators_once(text):
+    """Один проход по всем трём сервисам по очереди. Возвращает (текст,
+    None) при успехе или (None, последняя_ошибка) если не ответил никто."""
     last_error = None
-    if len(text) > 4000:
-        text = text[:4000].rsplit(" ", 1)[0]
 
-    # Порядок важен: Google стабильно отвечает 429 с IP GitHub Actions,
-    # поэтому основным сделан MyMemory, а Google остался запасным.
-    # Так экономятся ~10 секунд на каждой заведомо провальной попытке.
     try:
         result = _translate_mymemory(text)
         if result:
-            cache[key] = result
-            _save_cache()
-            return result
+            return result, None
     except Exception as e:
         last_error = e
         print(f"MyMemory не ответил ({str(e)[:80]}), пробую Lingva…")
@@ -589,9 +568,7 @@ def translate_to_ru(text):
     try:
         result = _translate_lingva(text)
         if result:
-            cache[key] = result
-            _save_cache()
-            return result
+            return result, None
     except Exception as e:
         last_error = e
         print(f"Lingva не ответила ({str(e)[:80]}), пробую Google…")
@@ -604,14 +581,49 @@ def translate_to_ru(text):
         try:
             result = _try_translate_once(text, endpoint)
             if result:
-                cache[key] = result
-                _save_cache()
-                return result
+                return result, None
         except Exception as e:
             last_error = e
 
-    print(f"!!! ПЕРЕВОД НЕ УДАЛСЯ ни одним из трёх сервисов — "
-          f"публикую оригинал. Причина: {str(last_error)[:120]}")
+    return None, last_error
+
+
+def translate_to_ru(text):
+    """Перевод на русский: MyMemory -> Lingva -> Google, с кэшем.
+    Если ВЕСЬ проход по трём сервисам не удался (частая причина — все
+    трое одновременно словили кратковременный сбой) — ждём немного и
+    повторяем весь проход ещё раз, прежде чем сдаться и опубликовать
+    оригинал."""
+    if not text.strip():
+        return text
+
+    if _is_mostly_russian(text):
+        return text
+
+    cache = _load_cache()
+    key = hashlib.sha256(text.encode("utf-8")).hexdigest()[:20]
+    if key in cache:
+        return cache[key]
+
+    # текст длиннее ~4500 символов Google обрезает — режем сами
+    if len(text) > 4000:
+        text = text[:4000].rsplit(" ", 1)[0]
+
+    last_error = None
+    for attempt in range(2):
+        result, err = _try_all_translators_once(text)
+        if result:
+            cache[key] = result
+            _save_cache()
+            return result
+        last_error = err
+        if attempt == 0:
+            print("Ни один переводчик не ответил с первого раза, "
+                  "жду 5 секунд и пробую всю цепочку заново…")
+            time.sleep(5)
+
+    print(f"!!! ПЕРЕВОД НЕ УДАЛСЯ ни одним из трёх сервисов даже со "
+          f"второй попытки — публикую оригинал. Причина: {str(last_error)[:120]}")
     return text
 
 
