@@ -80,6 +80,19 @@ JITTER_MAX_MINUTES = int(os.environ.get("JITTER_MAX_MINUTES", "7"))
 # опубликует столько постов, сколько "задолжал" за простой.
 POSTS_PER_HOUR = int(os.environ.get("POSTS_PER_HOUR", "4"))
 
+# "Тихие часы" — в это время публикации приостановлены, каждый день.
+# Часовой пояс задаётся явно (не берётся из настроек сервера), чтобы
+# не зависеть от того, как настроен конкретный VPS.
+QUIET_HOURS_START = os.environ.get("QUIET_HOURS_START", "01:12")
+QUIET_HOURS_END = os.environ.get("QUIET_HOURS_END", "05:43")
+QUIET_HOURS_TZ = os.environ.get("QUIET_HOURS_TZ", "Europe/Moscow")
+
+# Если после перевода доля латинских букв в тексте поста ≥ этой доли —
+# считаем перевод неудавшимся и НЕ публикуем (вместо публикации на
+# английском). 50% — с запасом на имена собственные и тикеры (BTC,
+# ETF), которые естественно остаются латиницей даже в хорошем переводе.
+ENGLISH_RATIO_LIMIT = float(os.environ.get("ENGLISH_RATIO_LIMIT", "0.5"))
+
 # Публиковать только новости, помеченные Gemini как важные (importance=top).
 # Если поставить "false" — вернётся публикация всего подряд.
 TOP_ONLY = os.environ.get("TOP_ONLY", "true").lower() == "true"
@@ -323,6 +336,36 @@ def detect_topic(candidate):
     if scores["crypto"] == scores[best]:
         return "crypto"
     return best
+
+
+def in_quiet_hours():
+    """True, если сейчас время внутри "тихого" окна (по Europe/Moscow
+    или другому явно заданному часовому поясу, независимо от настроек
+    сервера)."""
+    try:
+        from zoneinfo import ZoneInfo
+        now = datetime.datetime.now(ZoneInfo(QUIET_HOURS_TZ)).time()
+    except Exception as e:
+        print(f"Не смог определить часовой пояс {QUIET_HOURS_TZ} ({e}) "
+              f"— тихие часы не проверяю, работаю как обычно")
+        return False
+
+    start = datetime.datetime.strptime(QUIET_HOURS_START, "%H:%M").time()
+    end = datetime.datetime.strptime(QUIET_HOURS_END, "%H:%M").time()
+    if start <= end:
+        return start <= now <= end
+    return now >= start or now <= end  # окно переходит через полночь
+
+
+def english_ratio(text):
+    """Доля латинских букв среди всех буквенных символов текста.
+    Цифры, пунктуация и хэштеги в расчёт не идут — хэштеги проверке
+    не подвергаются вовсе, так как добавляются уже после неё."""
+    letters = [ch for ch in (text or "") if ch.isalpha()]
+    if not letters:
+        return 0.0
+    latin = sum(1 for ch in letters if "a" <= ch.lower() <= "z")
+    return latin / len(letters)
 
 
 def load_state():
@@ -858,6 +901,11 @@ def main():
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
         raise SystemExit("Не заданы TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID.")
 
+    if in_quiet_hours():
+        print(f"Тихие часы ({QUIET_HOURS_START}–{QUIET_HOURS_END} "
+              f"{QUIET_HOURS_TZ}) — публикации приостановлены до конца окна.")
+        return
+
     state = load_state()
     # seen — для быстрой проверки, posted_order — сохраняет порядок
     posted_order = list(state["posted_ids"])
@@ -1114,6 +1162,17 @@ def main():
 
         is_top = cls.get("importance") == "top"
         text = build_post_text(c, is_top)
+
+        # Проверка ПЕРЕД публикацией: если после перевода в тексте всё
+        # ещё больше половины латиницы — перевод не удался (все три
+        # сервиса отказали даже с повтором). Публиковать наполовину
+        # английский пост хуже, чем пропустить его вовсе.
+        ratio = english_ratio(text)
+        if ratio >= ENGLISH_RATIO_LIMIT:
+            print(f"Пропускаю (перевод не удался, {ratio:.0%} латиницы): "
+                  f"{c['title'][:70]}")
+            mark_seen(c["cid"])  # не пытаться перевести это же ещё раз
+            continue
 
         reply_to = None
         update_id = cls.get("update_of_message_id")
