@@ -854,11 +854,62 @@ def apply_entity_labels(text):
     return text
 
 
+TRUNCATION_MARKERS = ("...", "…", "[…]", "[&hellip;]", "[&#8230;]")
+
+
+def looks_truncated(text):
+    """True, если текст сам по себе выглядит обрывком — источник дал
+    только тизер, а не полный текст (частый случай для WordPress-лент)."""
+    return (text or "").rstrip().endswith(TRUNCATION_MARKERS)
+
+
+def strip_trailing_ellipsis(text):
+    """Убирает висящее многоточие источника — сами добавим ссылку
+    вместо него, а не оставим уродливое три-точки в конце фразы."""
+    text = (text or "").rstrip()
+    for marker in TRUNCATION_MARKERS:
+        if text.endswith(marker):
+            return text[: -len(marker)].rstrip(" ,.")
+    return text
+
+
+def smart_truncate(text, limit=500):
+    """Режет по границе предложения внутри лимита, а не как попало
+    посреди слова. Возвращает (обрезанный_текст, было_ли_обрезано)."""
+    original = text or ""
+    was_truncated = looks_truncated(original)  # проверяем ДО очистки
+    text = strip_trailing_ellipsis(original)
+
+    if len(text) <= limit:
+        return text, was_truncated
+
+    window = text[:limit]
+    # ищем последнюю точку/восклицательный/вопросительный знак не
+    # слишком рано — иначе можно отрезать после первого же "т.е."
+    best_cut = -1
+    for i in range(len(window) - 1, max(0, int(limit * 0.5)), -1):
+        if window[i] in ".!?" and (i + 1 == len(window) or window[i + 1] == " "):
+            best_cut = i + 1
+            break
+
+    if best_cut > 0:
+        return window[:best_cut].strip(), True
+    return window.rsplit(" ", 1)[0].strip(), True
+
+
 def build_post_text(candidate, is_top):
     title_ru = translate_to_ru(candidate["title"])
-    summary_ru = translate_to_ru(candidate["summary"][:500])
+    summary_cut, was_truncated = smart_truncate(candidate["summary"], 500)
+    summary_ru = translate_to_ru(summary_cut)
     prefix = f"{TOP_EMOJI} " if is_top else ""
     text = f"*{prefix}{title_ru}*\n\n{summary_ru}"
+
+    # Ссылку показываем ТОЛЬКО когда пост реально обрублен — источник
+    # дал огрызок, или наш лимит пришёлся на середину мысли. Не на всех
+    # постах подряд, чтобы не менять принятый ранее подход "без ссылок".
+    if was_truncated and candidate.get("link"):
+        text += f"\n\nПодробнее: {candidate['link']}"
+
     text = apply_entity_labels(text)
     return text.strip()
 
